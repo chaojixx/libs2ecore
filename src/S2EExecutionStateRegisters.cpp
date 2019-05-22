@@ -123,96 +123,73 @@ bool S2EExecutionStateRegisters::flagsRegistersAreSymbolic() const {
     return false;
 }
 
-/* uint64_t S2EExecutionStateRegisters::getSymbolicRegistersMask() const { */
-    // if (m_symbolicRegs->isAllConcrete())
-        // return 0;
 
-    // uint64_t mask = 0;
-    // uint64_t offset = 0;
-    // [> XXX: x86-specific <]
-    // for (int i = 0; i < 16; ++i) { [> regs <]
-        // if (!m_symbolicRegs->isConcrete(offset, sizeof(*env->regs) * 8)) {
-            // mask |= (1 << (i + 5));
-        // }
-        // offset += sizeof(*env->regs);
-    // }
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
+bool S2EExecutionStateRegisters::readSymbolicRegion(unsigned offset, void *_buf, unsigned size, bool concretize) const {
+    static const char *regNames[] = {"eax", "ecx", "edx",   "ebx",    "esp",    "ebp",
+                                     "esi", "edi", "cc_op", "cc_src", "cc_dst", "cc_tmp"};
+    assert(*m_active);
+    // assert(((uint64_t) env) == s_symbolicRegs->address);
+    assert(offset + size <= CPU_OFFSET(eip));
 
-    // if (!m_symbolicRegs->isConcrete(offsetof(CPUARMState, cc_op), sizeof(env->cc_op) * 8)) // cc_op
-        // mask |= _M_CC_OP;
-    // if (!m_symbolicRegs->isConcrete(offsetof(CPUARMState, cc_src), sizeof(env->cc_src) * 8)) // cc_src
-        // mask |= _M_CC_SRC;
-    // if (!m_symbolicRegs->isConcrete(offsetof(CPUARMState, cc_dst), sizeof(env->cc_dst) * 8)) // cc_dst
-        // mask |= _M_CC_DST;
-    // if (!m_symbolicRegs->isConcrete(offsetof(CPUARMState, cc_tmp), sizeof(env->cc_tmp) * 8)) // cc_tmp
-        // mask |= _M_CC_TMP;
-    // return mask;
-/* } */
+    /* Simple case, the register is concrete */
+    if (likely(*m_runningConcrete &&
+               (m_symbolicRegs->isAllConcrete() || m_symbolicRegs->isConcrete(offset, size * 8)))) {
+        // XXX: check if the size if always small enough
+        small_memcpy(_buf, ((uint8_t *) env) + offset, size);
+        return true;
+    }
 
-/* bool S2EExecutionStateRegisters::readSymbolicRegion(unsigned offset, void *_buf, unsigned size, bool concretize) const { */
-    // static const char *regNames[] = {"eax", "ecx", "edx",   "ebx",    "esp",    "ebp",
-                                     // "esi", "edi", "cc_op", "cc_src", "cc_dst", "cc_tmp"};
-    // assert(*m_active);
-    // // assert(((uint64_t) env) == s_symbolicRegs->address);
-    // assert(offset + size <= CPU_OFFSET(regs[15]));
+    /* Deal with the symbolic case */
+    ObjectState *wos = m_symbolicRegs;
+    bool oldAllConcrete = wos->isAllConcrete();
 
-    // [> Simple case, the register is concrete <]
-    // if (likely(*m_runningConcrete &&
-               // (m_symbolicRegs->isAllConcrete() || m_symbolicRegs->isConcrete(offset, size * 8)))) {
-        // // XXX: check if the size if always small enough
-        // small_memcpy(_buf, ((uint8_t *) env) + offset, size);
-        // return true;
-    // }
+    // XXX: deal with alignment and overlaps?
 
-    // [> Deal with the symbolic case <]
-    // ObjectState *wos = m_symbolicRegs;
-    // bool oldAllConcrete = wos->isAllConcrete();
+    // m_concretizer->concretize require value size <= sizeof(uint64_t), to
+    // support data size > sizeof(uint64_t), we do concretization every
+    // sizeof(uint64_t) bytes in a loop, or we can rewrite m_concretizer->concretize
+    // to remove the sizeof(uint64_t) bytes limitation
+    for (unsigned i = 0; i < size; i += sizeof(uint64_t)) {
+        unsigned csize = (size - i) > sizeof(uint64_t) ? sizeof(uint64_t) : (size - i);
+        ref<Expr> value = wos->read(offset + i, csize * 8);
+        uint64_t concreteValue;
+        if (!isa<ConstantExpr>(value)) {
+            if (!concretize) {
+                return false;
+            }
 
-    // // XXX: deal with alignment and overlaps?
+            size_t regIndex = offset / sizeof(target_ulong);
+            std::string regName = regIndex < (sizeof(regNames) / sizeof(regNames[0]))
+                                      ? regNames[regIndex]
+                                      : "CPUOffset-" + std::to_string(offset);
+            std::string reason = "access to " + regName + " register from libcpu helper";
 
-    // // m_concretizer->concretize require value size <= sizeof(uint64_t), to
-    // // support data size > sizeof(uint64_t), we do concretization every
-    // // sizeof(uint64_t) bytes in a loop, or we can rewrite m_concretizer->concretize
-    // // to remove the sizeof(uint64_t) bytes limitation
-    // for (unsigned i = 0; i < size; i += sizeof(uint64_t)) {
-        // unsigned csize = (size - i) > sizeof(uint64_t) ? sizeof(uint64_t) : (size - i);
-        // ref<Expr> value = wos->read(offset + i, csize * 8);
-        // uint64_t concreteValue;
-        // if (!isa<ConstantExpr>(value)) {
-            // if (!concretize) {
-                // return false;
-            // }
+            concreteValue = m_concretizer->concretize(value, reason.c_str());
+            wos->write(offset, ConstantExpr::create(concreteValue, csize * 8));
+        } else {
+            ConstantExpr *ce = dyn_cast<ConstantExpr>(value);
+            concreteValue = ce->getZExtValue(csize * 8);
+        }
 
-            // size_t regIndex = offset / sizeof(target_ulong);
-            // std::string regName = regIndex < (sizeof(regNames) / sizeof(regNames[0]))
-                                      // ? regNames[regIndex]
-                                      // : "CPUOffset-" + std::to_string(offset);
-            // std::string reason = "access to " + regName + " register from libcpu helper";
+        bool newAllConcrete = wos->isAllConcrete();
+        if ((oldAllConcrete != newAllConcrete) && (wos->getObject()->doNotifyOnConcretenessChange)) {
+            m_notification->addressSpaceSymbolicStatusChange(wos, newAllConcrete);
+        }
 
-            // concreteValue = m_concretizer->concretize(value, reason.c_str());
-            // wos->write(offset, ConstantExpr::create(concreteValue, csize * 8));
-        // } else {
-            // ConstantExpr *ce = dyn_cast<ConstantExpr>(value);
-            // concreteValue = ce->getZExtValue(csize * 8);
-        // }
+        // XXX: endianness issues on the host...
+        small_memcpy((char *) _buf + i, &concreteValue, csize);
+    }
+#ifdef S2E_TRACE_EFLAGS
+    if (offsetof(CPUX86State, cc_src) == offset) {
+        m_s2e->getDebugStream() << std::hex << getPc() << "read conc cc_src " << (*(uint32_t *) ((uint8_t *) buf))
+                                << '\n';
+    }
+#endif
 
-        // bool newAllConcrete = wos->isAllConcrete();
-        // if ((oldAllConcrete != newAllConcrete) && (wos->getObject()->doNotifyOnConcretenessChange)) {
-            // m_notification->addressSpaceSymbolicStatusChange(wos, newAllConcrete);
-        // }
-
-        // // XXX: endianness issues on the host...
-        // small_memcpy((char *) _buf + i, &concreteValue, csize);
-    // }
-// #ifdef S2E_TRACE_EFLAGS
-    // if (offsetof(CPUARMState, cc_src) == offset) {
-        // m_s2e->getDebugStream() << std::hex << getPc() << "read conc cc_src " << (*(uint32_t *) ((uint8_t *) buf))
-                                // << '\n';
-    // }
-// #endif
-
-    // return true;
-/* } */
-
+    return true;
+}
+#endif
 void S2EExecutionStateRegisters::writeSymbolicRegion(unsigned offset, const void *_buf, unsigned size) {
     assert(*m_active);
     assert(((uint64_t) env) == s_symbolicRegs->address);
