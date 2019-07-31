@@ -79,10 +79,10 @@ void S2EExecutionStateRegisters::copySymbRegs(bool toNative) {
 
 // XXX: The returned pointer cannot be used to modify symbolic state
 // It's gonna crash the system. We should really fix that.
-CPUX86State *S2EExecutionStateRegisters::getCpuState() const {
-    CPUX86State *cpu = *m_active
-                           ? (CPUX86State *) (s_concreteRegs->address - offsetof(CPUX86State, eip))
-                           : (CPUX86State *) (m_concreteRegs->getConcreteStore(true) - offsetof(CPUX86State, eip));
+CPUARMState *S2EExecutionStateRegisters::getCpuState() const {
+    CPUARMState *cpu = *m_active
+                           ? (CPUARMState *) (s_concreteRegs->address - offsetof(CPUARMState, regs[15]))
+                           : (CPUARMState *) (m_concreteRegs->getConcreteStore(true) - offsetof(CPUARMState, regs[15]));
 
     return cpu;
 }
@@ -104,119 +104,119 @@ bool S2EExecutionStateRegisters::flagsRegistersAreSymbolic() const {
     if (m_symbolicRegs->isAllConcrete())
         return false;
 
-    if (!m_symbolicRegs->isConcrete(offsetof(CPUX86State, cc_op), sizeof(env->cc_op) * 8)) {
+    if (!m_symbolicRegs->isConcrete(offsetof(CPUARMState, CF), sizeof(env->CF) * 8)) {
         return true;
     }
 
-    if (!m_symbolicRegs->isConcrete(offsetof(CPUX86State, cc_src), sizeof(env->cc_src) * 8)) {
+    if (!m_symbolicRegs->isConcrete(offsetof(CPUARMState, VF), sizeof(env->VF) * 8)) {
         return true;
     }
 
-    if (!m_symbolicRegs->isConcrete(offsetof(CPUX86State, cc_dst), sizeof(env->cc_dst) * 8)) {
+    if (!m_symbolicRegs->isConcrete(offsetof(CPUARMState, NF), sizeof(env->NF) * 8)) {
         return true;
     }
 
-    if (!m_symbolicRegs->isConcrete(offsetof(CPUX86State, cc_tmp), sizeof(env->cc_tmp) * 8)) {
+    if (!m_symbolicRegs->isConcrete(offsetof(CPUARMState, ZF), sizeof(env->ZF) * 8)) {
         return true;
     }
 
     return false;
 }
 
-uint64_t S2EExecutionStateRegisters::getSymbolicRegistersMask() const {
-    if (m_symbolicRegs->isAllConcrete())
-        return 0;
+/* uint64_t S2EExecutionStateRegisters::getSymbolicRegistersMask() const { */
+    // if (m_symbolicRegs->isAllConcrete())
+        // return 0;
 
-    uint64_t mask = 0;
-    uint64_t offset = 0;
-    /* XXX: x86-specific */
-    for (int i = 0; i < CPU_NB_REGS; ++i) { /* regs */
-        if (!m_symbolicRegs->isConcrete(offset, sizeof(*env->regs) * 8)) {
-            mask |= (1 << (i + 5));
-        }
-        offset += sizeof(*env->regs);
-    }
+    // uint64_t mask = 0;
+    // uint64_t offset = 0;
+    // [> XXX: x86-specific <]
+    // for (int i = 0; i < 16; ++i) { [> regs <]
+        // if (!m_symbolicRegs->isConcrete(offset, sizeof(*env->regs) * 8)) {
+            // mask |= (1 << (i + 5));
+        // }
+        // offset += sizeof(*env->regs);
+    // }
 
-    if (!m_symbolicRegs->isConcrete(offsetof(CPUX86State, cc_op), sizeof(env->cc_op) * 8)) // cc_op
-        mask |= _M_CC_OP;
-    if (!m_symbolicRegs->isConcrete(offsetof(CPUX86State, cc_src), sizeof(env->cc_src) * 8)) // cc_src
-        mask |= _M_CC_SRC;
-    if (!m_symbolicRegs->isConcrete(offsetof(CPUX86State, cc_dst), sizeof(env->cc_dst) * 8)) // cc_dst
-        mask |= _M_CC_DST;
-    if (!m_symbolicRegs->isConcrete(offsetof(CPUX86State, cc_tmp), sizeof(env->cc_tmp) * 8)) // cc_tmp
-        mask |= _M_CC_TMP;
-    return mask;
-}
+    // if (!m_symbolicRegs->isConcrete(offsetof(CPUARMState, cc_op), sizeof(env->cc_op) * 8)) // cc_op
+        // mask |= _M_CC_OP;
+    // if (!m_symbolicRegs->isConcrete(offsetof(CPUARMState, cc_src), sizeof(env->cc_src) * 8)) // cc_src
+        // mask |= _M_CC_SRC;
+    // if (!m_symbolicRegs->isConcrete(offsetof(CPUARMState, cc_dst), sizeof(env->cc_dst) * 8)) // cc_dst
+        // mask |= _M_CC_DST;
+    // if (!m_symbolicRegs->isConcrete(offsetof(CPUARMState, cc_tmp), sizeof(env->cc_tmp) * 8)) // cc_tmp
+        // mask |= _M_CC_TMP;
+    // return mask;
+/* } */
 
-bool S2EExecutionStateRegisters::readSymbolicRegion(unsigned offset, void *_buf, unsigned size, bool concretize) const {
-    static const char *regNames[] = {"eax", "ecx", "edx",   "ebx",    "esp",    "ebp",
-                                     "esi", "edi", "cc_op", "cc_src", "cc_dst", "cc_tmp"};
-    assert(*m_active);
-    // assert(((uint64_t) env) == s_symbolicRegs->address);
-    assert(offset + size <= CPU_OFFSET(eip));
+/* bool S2EExecutionStateRegisters::readSymbolicRegion(unsigned offset, void *_buf, unsigned size, bool concretize) const { */
+    // static const char *regNames[] = {"eax", "ecx", "edx",   "ebx",    "esp",    "ebp",
+                                     // "esi", "edi", "cc_op", "cc_src", "cc_dst", "cc_tmp"};
+    // assert(*m_active);
+    // // assert(((uint64_t) env) == s_symbolicRegs->address);
+    // assert(offset + size <= CPU_OFFSET(regs[15]));
 
-    /* Simple case, the register is concrete */
-    if (likely(*m_runningConcrete &&
-               (m_symbolicRegs->isAllConcrete() || m_symbolicRegs->isConcrete(offset, size * 8)))) {
-        // XXX: check if the size if always small enough
-        small_memcpy(_buf, ((uint8_t *) env) + offset, size);
-        return true;
-    }
+    // [> Simple case, the register is concrete <]
+    // if (likely(*m_runningConcrete &&
+               // (m_symbolicRegs->isAllConcrete() || m_symbolicRegs->isConcrete(offset, size * 8)))) {
+        // // XXX: check if the size if always small enough
+        // small_memcpy(_buf, ((uint8_t *) env) + offset, size);
+        // return true;
+    // }
 
-    /* Deal with the symbolic case */
-    ObjectState *wos = m_symbolicRegs;
-    bool oldAllConcrete = wos->isAllConcrete();
+    // [> Deal with the symbolic case <]
+    // ObjectState *wos = m_symbolicRegs;
+    // bool oldAllConcrete = wos->isAllConcrete();
 
-    // XXX: deal with alignment and overlaps?
+    // // XXX: deal with alignment and overlaps?
 
-    // m_concretizer->concretize require value size <= sizeof(uint64_t), to
-    // support data size > sizeof(uint64_t), we do concretization every
-    // sizeof(uint64_t) bytes in a loop, or we can rewrite m_concretizer->concretize
-    // to remove the sizeof(uint64_t) bytes limitation
-    for (unsigned i = 0; i < size; i += sizeof(uint64_t)) {
-        unsigned csize = (size - i) > sizeof(uint64_t) ? sizeof(uint64_t) : (size - i);
-        ref<Expr> value = wos->read(offset + i, csize * 8);
-        uint64_t concreteValue;
-        if (!isa<ConstantExpr>(value)) {
-            if (!concretize) {
-                return false;
-            }
+    // // m_concretizer->concretize require value size <= sizeof(uint64_t), to
+    // // support data size > sizeof(uint64_t), we do concretization every
+    // // sizeof(uint64_t) bytes in a loop, or we can rewrite m_concretizer->concretize
+    // // to remove the sizeof(uint64_t) bytes limitation
+    // for (unsigned i = 0; i < size; i += sizeof(uint64_t)) {
+        // unsigned csize = (size - i) > sizeof(uint64_t) ? sizeof(uint64_t) : (size - i);
+        // ref<Expr> value = wos->read(offset + i, csize * 8);
+        // uint64_t concreteValue;
+        // if (!isa<ConstantExpr>(value)) {
+            // if (!concretize) {
+                // return false;
+            // }
 
-            size_t regIndex = offset / sizeof(target_ulong);
-            std::string regName = regIndex < (sizeof(regNames) / sizeof(regNames[0]))
-                                      ? regNames[regIndex]
-                                      : "CPUOffset-" + std::to_string(offset);
-            std::string reason = "access to " + regName + " register from libcpu helper";
+            // size_t regIndex = offset / sizeof(target_ulong);
+            // std::string regName = regIndex < (sizeof(regNames) / sizeof(regNames[0]))
+                                      // ? regNames[regIndex]
+                                      // : "CPUOffset-" + std::to_string(offset);
+            // std::string reason = "access to " + regName + " register from libcpu helper";
 
-            concreteValue = m_concretizer->concretize(value, reason.c_str());
-            wos->write(offset, ConstantExpr::create(concreteValue, csize * 8));
-        } else {
-            ConstantExpr *ce = dyn_cast<ConstantExpr>(value);
-            concreteValue = ce->getZExtValue(csize * 8);
-        }
+            // concreteValue = m_concretizer->concretize(value, reason.c_str());
+            // wos->write(offset, ConstantExpr::create(concreteValue, csize * 8));
+        // } else {
+            // ConstantExpr *ce = dyn_cast<ConstantExpr>(value);
+            // concreteValue = ce->getZExtValue(csize * 8);
+        // }
 
-        bool newAllConcrete = wos->isAllConcrete();
-        if ((oldAllConcrete != newAllConcrete) && (wos->getObject()->doNotifyOnConcretenessChange)) {
-            m_notification->addressSpaceSymbolicStatusChange(wos, newAllConcrete);
-        }
+        // bool newAllConcrete = wos->isAllConcrete();
+        // if ((oldAllConcrete != newAllConcrete) && (wos->getObject()->doNotifyOnConcretenessChange)) {
+            // m_notification->addressSpaceSymbolicStatusChange(wos, newAllConcrete);
+        // }
 
-        // XXX: endianness issues on the host...
-        small_memcpy((char *) _buf + i, &concreteValue, csize);
-    }
-#ifdef S2E_TRACE_EFLAGS
-    if (offsetof(CPUX86State, cc_src) == offset) {
-        m_s2e->getDebugStream() << std::hex << getPc() << "read conc cc_src " << (*(uint32_t *) ((uint8_t *) buf))
-                                << '\n';
-    }
-#endif
+        // // XXX: endianness issues on the host...
+        // small_memcpy((char *) _buf + i, &concreteValue, csize);
+    // }
+// #ifdef S2E_TRACE_EFLAGS
+    // if (offsetof(CPUARMState, cc_src) == offset) {
+        // m_s2e->getDebugStream() << std::hex << getPc() << "read conc cc_src " << (*(uint32_t *) ((uint8_t *) buf))
+                                // << '\n';
+    // }
+// #endif
 
-    return true;
-}
+    // return true;
+/* } */
 
 void S2EExecutionStateRegisters::writeSymbolicRegion(unsigned offset, const void *_buf, unsigned size) {
     assert(*m_active);
     assert(((uint64_t) env) == s_symbolicRegs->address);
-    assert(offset + size <= CPU_OFFSET(eip));
+    assert(offset + size <= CPU_OFFSET(regs[15]));
 
     const uint8_t *buf = (const uint8_t *) _buf;
 
@@ -238,7 +238,7 @@ void S2EExecutionStateRegisters::writeSymbolicRegion(unsigned offset, const void
     }
 
 #ifdef S2E_TRACE_EFLAGS
-    if (offsetof(CPUX86State, cc_src) == offset) {
+    if (offsetof(CPUARMState, cc_src) == offset) {
         m_s2e->getDebugStream() << std::hex << getPc() << "write conc cc_src " << (*(uint32_t *) ((uint8_t *) buf))
                                 << '\n';
     }
@@ -247,7 +247,7 @@ void S2EExecutionStateRegisters::writeSymbolicRegion(unsigned offset, const void
 
 ref<Expr> S2EExecutionStateRegisters::readSymbolicRegion(unsigned offset, Expr::Width width) const {
     assert((width == 1 || (width & 7) == 0) && width <= 64);
-    assert(offset + Expr::getMinBytesForWidth(width) <= CPU_OFFSET(eip));
+    assert(offset + Expr::getMinBytesForWidth(width) <= CPU_OFFSET(regs[15]));
 
     if (!(*m_runningConcrete) || !m_symbolicRegs->isConcrete(offset, width)) {
         klee::BitfieldSimplifier simpl;
@@ -264,7 +264,7 @@ ref<Expr> S2EExecutionStateRegisters::readSymbolicRegion(unsigned offset, Expr::
 void S2EExecutionStateRegisters::writeSymbolicRegion(unsigned offset, klee::ref<klee::Expr> value) {
     unsigned width = value->getWidth();
     assert((width == 1 || (width & 7) == 0) && width <= 64);
-    assert(offset + Expr::getMinBytesForWidth(width) <= CPU_OFFSET(eip));
+    assert(offset + Expr::getMinBytesForWidth(width) <= CPU_OFFSET(regs[15]));
 
     if (!(*m_runningConcrete) || !m_symbolicRegs->isConcrete(offset, width)) {
         bool oldAllConcrete = m_symbolicRegs->isAllConcrete();
@@ -293,7 +293,7 @@ void S2EExecutionStateRegisters::writeSymbolicRegion(unsigned offset, klee::ref<
 void S2EExecutionStateRegisters::writeSymbolicRegionUnsafe(unsigned offset, klee::ref<klee::Expr> value) {
     unsigned width = value->getWidth();
     assert((width == 1 || (width & 7) == 0) && width <= 64);
-    assert(offset + Expr::getMinBytesForWidth(width) <= CPU_OFFSET(eip));
+    assert(offset + Expr::getMinBytesForWidth(width) <= CPU_OFFSET(regs[15]));
 
     bool oldAllConcrete = m_symbolicRegs->isAllConcrete();
 
@@ -310,16 +310,16 @@ void S2EExecutionStateRegisters::writeSymbolicRegionUnsafe(unsigned offset, klee
 void S2EExecutionStateRegisters::readConcreteRegion(unsigned offset, void *buffer, unsigned size) const {
     unsigned width = size * 8;
     assert((width == 1 || (width & 7) == 0) && width <= 64);
-    assert(offset >= offsetof(CPUX86State, eip));
-    assert(offset + Expr::getMinBytesForWidth(width) <= sizeof(CPUX86State));
+    assert(offset >= offsetof(CPUARMState, regs[15]));
+    assert(offset + Expr::getMinBytesForWidth(width) <= sizeof(CPUARMState));
 
     const uint8_t *address;
     if (*m_active) {
-        address = (uint8_t *) s_concreteRegs->address - CPU_OFFSET(eip);
+        address = (uint8_t *) s_concreteRegs->address - CPU_OFFSET(regs[15]);
     } else {
         address = m_concreteRegs->getConcreteStore();
         assert(address);
-        address -= CPU_OFFSET(eip);
+        address -= CPU_OFFSET(regs[15]);
     }
 
     small_memcpy(buffer, address + offset, size);
@@ -328,26 +328,26 @@ void S2EExecutionStateRegisters::readConcreteRegion(unsigned offset, void *buffe
 void S2EExecutionStateRegisters::writeConcreteRegion(unsigned offset, const void *buffer, unsigned size) {
     unsigned width = size * 8;
     assert((width == 1 || (width & 7) == 0) && width <= 64);
-    assert(offset >= offsetof(CPUX86State, eip));
-    assert(offset + Expr::getMinBytesForWidth(width) <= sizeof(CPUX86State));
+    assert(offset >= offsetof(CPUARMState, regs[15]));
+    assert(offset + Expr::getMinBytesForWidth(width) <= sizeof(CPUARMState));
 
     uint8_t *address;
     if (*m_active) {
-        address = (uint8_t *) s_concreteRegs->address - CPU_OFFSET(eip);
+        address = (uint8_t *) s_concreteRegs->address - CPU_OFFSET(regs[15]);
     } else {
         address = m_concreteRegs->getConcreteStore();
         assert(address);
-        address -= CPU_OFFSET(eip);
+        address -= CPU_OFFSET(regs[15]);
     }
 
     small_memcpy(address + offset, buffer, size);
 }
 
 bool S2EExecutionStateRegisters::getRegionType(unsigned offset, unsigned size, bool *isConcrete) {
-    if (offset + size <= offsetof(CPUX86State, eip)) {
+    if (offset + size <= offsetof(CPUARMState, regs[15])) {
         *isConcrete = false;
         return true;
-    } else if (offset >= offsetof(CPUX86State, eip)) {
+    } else if (offset >= offsetof(CPUARMState, regs[15])) {
         *isConcrete = true;
         return true;
     } else {
@@ -360,15 +360,15 @@ bool S2EExecutionStateRegisters::getRegionType(unsigned offset, unsigned size, b
  * We skip this stuff in the comparison.
  */
 int S2EExecutionStateRegisters::compareArchitecturalConcreteState(const S2EExecutionStateRegisters &other) {
-    CPUX86State *a = getCpuState();
-    CPUX86State *b = other.getCpuState();
+    CPUARMState *a = getCpuState();
+    CPUARMState *b = other.getCpuState();
 
-    int ret = memcmp(&a->eip, &b->eip, CPU_OFFSET(se_common_start) - CPU_OFFSET(eip));
+    int ret = memcmp(&a->regs[15], &b->regs[15], CPU_OFFSET(se_common_start) - CPU_OFFSET(regs[15]));
     if (ret) {
         return ret;
     }
 
-    ret = memcmp(&a->se_common_end, &b->se_common_end, sizeof(CPUX86State) - CPU_OFFSET(se_common_end));
+    ret = memcmp(&a->se_common_end, &b->se_common_end, sizeof(CPUARMState) - CPU_OFFSET(se_common_end));
     return ret;
 }
 
@@ -450,78 +450,85 @@ bool S2EExecutionStateRegisters::write(unsigned offset, const klee::ref<klee::Ex
 // Get the program counter in the current state.
 // Allows plugins to retrieve it in a hardware-independent manner.
 uint64_t S2EExecutionStateRegisters::getPc() const {
-    return read<target_ulong>(CPU_OFFSET(eip));
+    return read<target_ulong>(CPU_OFFSET(regs[15]));
 }
 
 void S2EExecutionStateRegisters::setPc(uint64_t pc) {
-    bool ret = write<target_ulong>(CPU_OFFSET(eip), pc);
+    bool ret = write<target_ulong>(CPU_OFFSET(regs[15]), pc);
     assert(ret);
 }
 
 uint64_t S2EExecutionStateRegisters::getSp() const {
-    return read<target_ulong>(CPU_OFFSET(regs[R_ESP]));
+    return read<target_ulong>(CPU_OFFSET(regs[13]));
 }
 
 void S2EExecutionStateRegisters::setSp(uint64_t sp) {
-    bool ret = write<target_ulong>(CPU_OFFSET(regs[R_ESP]), sp);
+    bool ret = write<target_ulong>(CPU_OFFSET(regs[13]), sp);
     assert(ret);
 }
 
-uint64_t S2EExecutionStateRegisters::getBp() const {
-    return read<target_ulong>(CPU_OFFSET(regs[R_EBP]));
+uint64_t S2EExecutionStateRegisters::getLr() const {
+    return read<target_ulong>(CPU_OFFSET(regs[14]));
 }
 
-void S2EExecutionStateRegisters::setBp(uint64_t bp) {
-    bool ret = write<target_ulong>(CPU_OFFSET(regs[R_EBP]), bp);
+void S2EExecutionStateRegisters::setLr(uint64_t bp) {
+    bool ret = write<target_ulong>(CPU_OFFSET(regs[14]), bp);
     assert(ret);
 }
 
 uint64_t S2EExecutionStateRegisters::getPageDir() const {
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     return read<target_ulong>(CPU_OFFSET(cr[3]));
+#elif defined(TARGET_ARM)
+    return 0x0;
+#else
+#error Unsupported target architecture
+#endif   
 }
 
-uint64_t S2EExecutionStateRegisters::getFlags() {
-    /* restore flags in standard format */
-    cpu_restore_eflags(env);
-    return cpu_get_eflags(env);
-}
+/* uint64_t S2EExecutionStateRegisters::getFlags() { */
+    // [> restore flags in standard format <]
+    // cpu_restore_eflags(env);
+    // return cpu_get_eflags(env);
+/* } */
 
 /// \brief Print register values
 ///
 /// \param ss output stream
 ///
-void S2EExecutionStateRegisters::dump(std::ostream &ss) const {
-    std::ostringstream concreteBytes;
-    std::ostringstream symbolicBytes;
+/* void S2EExecutionStateRegisters::dump(std::ostream &ss) const { */
+    // std::ostringstream concreteBytes;
+    // std::ostringstream symbolicBytes;
 
-#define PRINT_REG(name)                                                                          \
-    do {                                                                                         \
-        ref<Expr> reg;                                                                           \
-        /* TODO: use state->getPointerWidth() instead of Expr::Int32. */                         \
-        /* It currenly fails because se_current_tb is NULL after state switch. */                \
-        reg = readSymbolicRegion(CPU_OFFSET(regs[R_##name]), Expr::Int32);                       \
-        concreteBytes << #name << " ";                                                           \
-        for (int i = reg->getWidth() / CHAR_BIT - 1; i >= 0; i--) {                              \
-            ref<Expr> byte = E_EXTR(reg, i * CHAR_BIT, Expr::Int8);                              \
-            if (isa<ConstantExpr>(byte)) {                                                       \
-                concreteBytes << hexval(dyn_cast<ConstantExpr>(byte)->getZExtValue(), 2, false); \
-            } else {                                                                             \
-                concreteBytes << "SS";                                                           \
-                symbolicBytes << #name << "[" << i << "] " << byte << "\n";                      \
-            }                                                                                    \
-        }                                                                                        \
-        concreteBytes << "\n";                                                                   \
-    } while (0)
+// #define PRINT_REG(name)                                                                          \
+    // do {                                                                                         \
+        // ref<Expr> reg;                                                                           \
+        // [> TODO: use state->getPointerWidth() instead of Expr::Int32. <]                         \
+        // [> It currenly fails because se_current_tb is NULL after state switch. <]                \
+        // reg = readSymbolicRegion(CPU_OFFSET(regs[R_##name]), Expr::Int32);                       \
+        // concreteBytes << #name << " ";                                                           \
+        // for (int i = reg->getWidth() / CHAR_BIT - 1; i >= 0; i--) {                              \
+            // ref<Expr> byte = E_EXTR(reg, i * CHAR_BIT, Expr::Int8);                              \
+            // if (isa<ConstantExpr>(byte)) {                                                       \
+                // concreteBytes << hexval(dyn_cast<ConstantExpr>(byte)->getZExtValue(), 2, false); \
+            // } else {                                                                             \
+                // concreteBytes << "SS";                                                           \
+                // symbolicBytes << #name << "[" << i << "] " << byte << "\n";                      \
+            // }                                                                                    \
+        // }                                                                                        \
+        // concreteBytes << "\n";                                                                   \
+    // } while (0)
 
-    PRINT_REG(EAX);
-    PRINT_REG(EBX);
-    PRINT_REG(ECX);
-    PRINT_REG(EDX);
-    PRINT_REG(ESI);
-    PRINT_REG(EDI);
-    PRINT_REG(EBP);
-    PRINT_REG(ESP);
+    // PRINT_REG(EAX);
+    // PRINT_REG(EBX);
+    // PRINT_REG(ECX);
+    // PRINT_REG(EDX);
+    // PRINT_REG(ESI);
+    // PRINT_REG(EDI);
+    // PRINT_REG(EBP);
+    // PRINT_REG(ESP);
 
-    ss << "Registers\n" << concreteBytes.str() << symbolicBytes.str();
-}
+    // ss << "Registers\n" << concreteBytes.str() << symbolicBytes.str();
+/* } */
+
 }

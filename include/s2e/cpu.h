@@ -20,17 +20,28 @@
 #define __S2E_CPU_H__
 
 #ifdef __cplusplus
+#include "s2e_config.h"
 extern "C" {
 #endif
-
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 #include <cpu/i386/cpu.h>
 #include <cpu/i386/helper.h>
+#define CPUArchState struct CPUX86State
+#elif defined(TARGET_ARM)
+#include <cpu/arm/cpu.h>
+#include <cpu/arm/helper.h>
+#define CPUArchState struct CPUARMState
+#else
+#error Unsupported target architecture
+#endif
 #include <cpu/exec.h>
 #include <cpu/cpu-common.h>
 #include <libcpu-compiler.h>
 #include <cpu/se_libcpu.h>
 #include <cpu/tlb.h>
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 #include <cpu/apic.h>
+#endif
 #include <cpu/ioport.h>
 #include <cpu/cpus.h>
 #include <cpu/disas.h>
@@ -56,7 +67,14 @@ int s2e_dev_restore(void *buffer, int pos, size_t size);
 #define fast_jmp_buf jmp_buf
 
 
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 extern struct CPUX86State *env;
+#elif defined(TARGET_ARM)
+extern struct CPUARMState *env;
+#else
+#error Unsupported target architecture
+#endif
+
 void LIBCPU_NORETURN raise_exception(int exception_index);
 void LIBCPU_NORETURN raise_exception_err(int exception_index, int error_code);
 extern const uint8_t parity_table[256];

@@ -16,11 +16,20 @@
 #include <klee/IConcretizer.h>
 #include <klee/Memory.h>
 
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 extern "C" {
 struct CPUX86State;
 }
-
 #define CPU_OFFSET(field) offsetof(CPUX86State, field)
+#elif defined(TARGET_ARM)
+extern "C" {
+struct CPUARMState;
+}
+#define CPU_OFFSET(field) offsetof(CPUARMState, field)
+#else
+#error Unsupported target architecture
+#endif
+
 
 namespace s2e {
 
@@ -118,7 +127,7 @@ public:
     /// data of the cpu registers reside. It can either point
     /// to the backing store if the state is inactive, or to
     /// the global CPUState object if active.
-    CPUX86State *getCpuState() const;
+    CPUARMState *getCpuState() const;
 
     bool allConcrete() const {
         return m_symbolicRegs->isAllConcrete();
@@ -245,7 +254,7 @@ public:
     ///
     /// \return the frame pointer
     ///
-    uint64_t getBp() const;
+    uint64_t getLr() const;
 
     ///
     /// \brief Read the content of the stack pointer register
@@ -284,7 +293,7 @@ public:
     /// \brief Write to the frame pointer register
     /// \param bp the new value of the frame pointer
     ///
-    void setBp(uint64_t bp);
+    void setLr(uint64_t bp);
 
     ///
     /// \brief Write to the stack pointer register

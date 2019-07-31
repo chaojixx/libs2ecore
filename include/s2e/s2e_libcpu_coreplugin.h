@@ -21,6 +21,10 @@ extern "C" {
 
 struct TranslationBlock;
 
+/*peripherals symbolic*/
+
+void s2e_tcg_make_peripheral_symbolic(uintptr_t address, unsigned size);
+
 void s2e_tcg_execution_handler(void *signal, uint64_t pc);
 void s2e_tcg_custom_instruction_handler(uint64_t arg);
 
@@ -53,11 +57,11 @@ void s2e_on_translate_instruction_end(void *context, struct TranslationBlock *tb
 /** Called by cpu_gen_code() before translation of each jump instruction */
 void s2e_on_translate_jump_start(void *context, struct TranslationBlock *tb, uint64_t pc, int jump_type);
 
-void s2e_on_translate_indirect_cti_start(void *context, struct TranslationBlock *tb, uint64_t pc, int rm, int op,
-                                         int offset);
 
 void s2e_on_translate_lea_rip_relative(void *context, struct TranslationBlock *tb, uint64_t pc, uint64_t addr);
 
+void s2e_on_translate_indirect_cti_start(void *context, struct TranslationBlock *tb, uint64_t pc, int rm, int op,
+                                         int offset);
 void s2e_on_translate_register_access(struct TranslationBlock *tb, uint64_t pc, uint64_t readMask, uint64_t writeMask,
                                       int isMemoryAccess);
 

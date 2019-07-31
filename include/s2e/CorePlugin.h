@@ -185,6 +185,13 @@ public:
                  uint64_t /* arg */>
         onCustomInstruction;
 
+    /// Signal that is emitted when access perpherial address, insert a symbol value. 
+    ///
+    sigc::signal<void,
+                 S2EExecutionState*,
+                 uintptr_t,/* addr*/
+                 uint64_t /* size */>
+        onMakePerpherialSymbolic;
     ///
     /// Signal emitted right before an INT xxx instruction is translated.
     ///

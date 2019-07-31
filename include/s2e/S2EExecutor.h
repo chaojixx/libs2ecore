@@ -19,7 +19,7 @@
 struct TCGLLVMContext;
 
 struct TranslationBlock;
-struct CPUX86State;
+struct CPUARMState;
 
 namespace klee {
 struct Query;
@@ -100,7 +100,7 @@ public:
 
     void initializeExecution(S2EExecutionState *initialState, bool executeAlwaysKlee);
 
-    void registerCpu(S2EExecutionState *initialState, CPUX86State *cpuEnv);
+    void registerCpu(S2EExecutionState *initialState, CPUARMState *cpuEnv);
     void registerRam(S2EExecutionState *initialState, struct MemoryDesc *region, uint64_t startAddress, uint64_t size,
                      uint64_t hostAddress, bool isSharedConcrete, bool saveOnContextSwitch = true,
                      const char *name = "");
@@ -122,8 +122,8 @@ public:
 
     uintptr_t executeTranslationBlock(S2EExecutionState *state, TranslationBlock *tb);
 
-    static uintptr_t executeTranslationBlockSlow(struct CPUX86State *env1, struct TranslationBlock *tb);
-    static uintptr_t executeTranslationBlockFast(struct CPUX86State *env1, struct TranslationBlock *tb);
+    static uintptr_t executeTranslationBlockSlow(struct CPUARMState *env1, struct TranslationBlock *tb);
+    static uintptr_t executeTranslationBlockFast(struct CPUARMState *env1, struct TranslationBlock *tb);
 
     /* Returns true if the CPU loop must be exited */
     bool finalizeTranslationBlockExec(S2EExecutionState *state);
@@ -135,11 +135,12 @@ public:
 
     void updateStates(klee::ExecutionState *current);
 
-    void setCCOpEflags(S2EExecutionState *state);
+    //void setCCOpEflags(S2EExecutionState *state);
     void doInterrupt(S2EExecutionState *state, int intno, int is_int, int error_code, uint64_t next_eip, int is_hw);
 
     static void doInterruptAll(int intno, int is_int, int error_code, uintptr_t next_eip, int is_hw);
 
+    static void doInterruptARM(struct CPUARMState *env1);
     /** Suspend the given state (does not kill it) */
     bool suspendState(S2EExecutionState *state, bool onlyRemoveFromPtree = false);
 

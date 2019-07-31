@@ -242,6 +242,7 @@ extern "C" {
 
     se_do_interrupt_all_t g_s2e_do_interrupt_all = &s2e::S2EExecutor::doInterruptAll;
 
+    se_do_interrupt_arm_t g_s2e_do_interrupt_arm = &s2e::S2EExecutor::doInterruptARM;
     //Shortcut to speed up access to the dirty mask (it is always concrete)
     uintptr_t g_se_dirty_mask_addend = 0;
 
@@ -491,12 +492,8 @@ void S2EExecutor::handlerTraceInstruction(klee::Executor *executor, klee::Execut
                                           klee::KInstruction *target, std::vector<klee::ref<klee::Expr>> &args) {
     S2EExecutionState *s2eState = static_cast<S2EExecutionState *>(state);
     g_s2e->getDebugStream() << "pc=" << hexval(s2eState->regs()->getPc())
-                            << " EAX: " << s2eState->regs()->read(offsetof(CPUX86State, regs[R_EAX]), klee::Expr::Int32)
-                            << " ECX: " << s2eState->regs()->read(offsetof(CPUX86State, regs[R_ECX]), klee::Expr::Int32)
-                            << " CCSRC: " << s2eState->regs()->read(offsetof(CPUX86State, cc_src), klee::Expr::Int32)
-                            << " CCDST: " << s2eState->regs()->read(offsetof(CPUX86State, cc_dst), klee::Expr::Int32)
-                            << " CCTMP: " << s2eState->regs()->read(offsetof(CPUX86State, cc_tmp), klee::Expr::Int32)
-                            << " CCOP: " << s2eState->regs()->read(offsetof(CPUX86State, cc_op), klee::Expr::Int32)
+                            << " LR: " << s2eState->regs()->read(offsetof(CPUARMState, regs[14]), klee::Expr::Int32)
+                            << " SP: " << s2eState->regs()->read(offsetof(CPUARMState, regs[13]), klee::Expr::Int32)
                             << '\n';
 }
 
@@ -766,8 +763,10 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, const Interpr
 
     //__DEFINE_EXT_FUNCTION(raise_exception)
     //__DEFINE_EXT_FUNCTION(raise_exception_err)
-
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     helper_register_symbols();
+#endif
+
 
     __DEFINE_EXT_VARIABLE(g_s2e_concretize_io_addresses)
     __DEFINE_EXT_VARIABLE(g_s2e_concretize_io_writes)
@@ -808,17 +807,19 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, const Interpr
     __DEFINE_EXT_FUNCTION(floatx80_add)
     __DEFINE_EXT_FUNCTION(floatx80_compare_quiet)
     __DEFINE_EXT_FUNCTION(set_float_rounding_mode)
-
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     __DEFINE_EXT_FUNCTION(cpu_x86_handle_mmu_fault)
     __DEFINE_EXT_FUNCTION(cpu_x86_update_cr0)
     __DEFINE_EXT_FUNCTION(cpu_x86_update_cr3)
     __DEFINE_EXT_FUNCTION(cpu_x86_update_cr4)
     __DEFINE_EXT_FUNCTION(cpu_x86_cpuid)
-    __DEFINE_EXT_FUNCTION(cpu_get_apic_base)
-    __DEFINE_EXT_FUNCTION(cpu_set_apic_base)
-    __DEFINE_EXT_FUNCTION(cpu_get_apic_tpr)
-    __DEFINE_EXT_FUNCTION(cpu_set_apic_tpr)
-    __DEFINE_EXT_FUNCTION(cpu_smm_update)
+    __DEFINE_EXT_FUNCTION(cpu_get_tsc)
+    __DEFINE_EXT_FUNCTION(hw_breakpoint_insert)
+    __DEFINE_EXT_FUNCTION(hw_breakpoint_remove)
+    __DEFINE_EXT_FUNCTION(check_hw_breakpoints)
+#endif
+    __DEFINE_EXT_FUNCTION(tb_find_pc)
+    __DEFINE_EXT_FUNCTION(cpu_exit)
     __DEFINE_EXT_FUNCTION(cpu_outb)
     __DEFINE_EXT_FUNCTION(cpu_outw)
     __DEFINE_EXT_FUNCTION(cpu_outl)
@@ -828,13 +829,7 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, const Interpr
     __DEFINE_EXT_FUNCTION(cpu_restore_state)
     __DEFINE_EXT_FUNCTION(cpu_abort)
     __DEFINE_EXT_FUNCTION(cpu_loop_exit)
-    __DEFINE_EXT_FUNCTION(cpu_get_tsc)
-    __DEFINE_EXT_FUNCTION(tb_find_pc)
-    __DEFINE_EXT_FUNCTION(cpu_exit)
 
-    __DEFINE_EXT_FUNCTION(hw_breakpoint_insert)
-    __DEFINE_EXT_FUNCTION(hw_breakpoint_remove)
-    __DEFINE_EXT_FUNCTION(check_hw_breakpoints)
 
     __DEFINE_EXT_FUNCTION(tlb_flush_page)
     __DEFINE_EXT_FUNCTION(tlb_flush)
@@ -986,10 +981,11 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, const Interpr
     assert(function);
     addSpecialFunctionHandler(function, handlerAfterMemoryAccess);
 
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     function = kmodule->module->getFunction("tcg_llvm_trace_port_access");
     assert(function);
     addSpecialFunctionHandler(function, handlerTracePortAccess);
-
+#endif
     function = kmodule->module->getFunction("tcg_llvm_trace_mmio_access");
     assert(function);
     addSpecialFunctionHandler(function, handlerTraceMmioAccess);
@@ -1004,11 +1000,11 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, const Interpr
     function = kmodule->module->getFunction("tcg_llvm_fork_and_concretize");
     assert(function);
     addSpecialFunctionHandler(function, handleForkAndConcretize);
-
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     function = kmodule->module->getFunction("tcg_llvm_get_value");
     assert(function);
     addSpecialFunctionHandler(function, handleGetValue);
-
+#endif
     FunctionType *traceInstTy = FunctionType::get(Type::getVoidTy(M->getContext()), false);
     function =
         dynamic_cast<Function *>(kmodule->module->getOrInsertFunction("tcg_llvm_trace_instruction", traceInstTy));
@@ -1119,9 +1115,13 @@ S2EExecutionState *S2EExecutor::createInitialState() {
     __DEFINE_EXT_OBJECT_RO(cpu_single_env)
     __DEFINE_EXT_OBJECT_RO(loglevel)
     __DEFINE_EXT_OBJECT_RO(logfile)
+
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     __DEFINE_EXT_OBJECT_RO_SYMB(parity_table)
     __DEFINE_EXT_OBJECT_RO_SYMB(rclw_table)
     __DEFINE_EXT_OBJECT_RO_SYMB(rclb_table)
+#endif
+
 
     m_s2e->getInfoStream(state) << "Created initial state" << '\n';
 
@@ -1141,7 +1141,7 @@ void S2EExecutor::initializeExecution(S2EExecutionState *state, bool executeAlwa
     initializeStateSwitchTimer();
 }
 
-void S2EExecutor::registerCpu(S2EExecutionState *initialState, CPUX86State *cpuEnv) {
+void S2EExecutor::registerCpu(S2EExecutionState *initialState, CPUARMState *cpuEnv) {
     std::cout << std::hex << "Adding CPU (addr = " << std::hex << cpuEnv << ", size = 0x" << sizeof(*cpuEnv) << ")"
               << std::dec << '\n';
 
@@ -1151,14 +1151,14 @@ void S2EExecutor::registerCpu(S2EExecutionState *initialState, CPUX86State *cpuE
     }
 
     /* Add registers and eflags area as a true symbolic area */
-    MemoryObject *symbolicRegs = addExternalObject(*initialState, cpuEnv, offsetof(CPUX86State, eip),
+    MemoryObject *symbolicRegs = addExternalObject(*initialState, cpuEnv, offsetof(CPUARMState, regs[15]),
                                                    /* isReadOnly = */ false,
                                                    /* isUserSpecified = */ false,
                                                    /* isSharedConcrete = */ false);
 
     /* Add the rest of the structure as concrete-only area */
-    MemoryObject *concreteRegs = addExternalObject(*initialState, ((uint8_t *) cpuEnv) + offsetof(CPUX86State, eip),
-                                                   sizeof(CPUX86State) - offsetof(CPUX86State, eip),
+    MemoryObject *concreteRegs = addExternalObject(*initialState, ((uint8_t *) cpuEnv) + offsetof(CPUARMState, regs[15]),
+                                                   sizeof(CPUARMState) - offsetof(CPUARMState, regs[15]),
                                                    /* isReadOnly = */ false,
                                                    /* isUserSpecified = */ true,
                                                    /* isSharedConcrete = */ true);
@@ -1811,7 +1811,7 @@ void S2EExecutor::updateClockScaling() {
 }
 
 void S2EExecutor::updateConcreteFastPath(S2EExecutionState *state) {
-    bool allConcrete = state->regs()->getSymbolicRegistersMask() == 0;
+    bool allConcrete = state->regs()->allConcrete();
     g_s2e_fast_concrete_invocation = (allConcrete) && (state->m_toRunSymbolically.size() == 0) &&
                                      (state->m_startSymbexAtPC == (uint64_t) -1) &&
 
@@ -1940,7 +1940,7 @@ static void se_tb_reset_jump_smask(TranslationBlock *tb, unsigned int n, uint64_
     }
 }
 
-uintptr_t S2EExecutor::executeTranslationBlockSlow(struct CPUX86State *env1, struct TranslationBlock *tb) {
+uintptr_t S2EExecutor::executeTranslationBlockSlow(struct CPUARMState *env1, struct TranslationBlock *tb) {
     try {
         uintptr_t ret = g_s2e->getExecutor()->executeTranslationBlock(g_s2e_state, tb);
         return ret;
@@ -1950,7 +1950,7 @@ uintptr_t S2EExecutor::executeTranslationBlockSlow(struct CPUX86State *env1, str
     }
 }
 
-uintptr_t S2EExecutor::executeTranslationBlockFast(struct CPUX86State *env1, struct TranslationBlock *tb) {
+uintptr_t S2EExecutor::executeTranslationBlockFast(struct CPUARMState *env1, struct TranslationBlock *tb) {
     env = env1;
     g_s2e_state->setRunningExceptionEmulationCode(false);
 
@@ -1976,40 +1976,23 @@ uintptr_t S2EExecutor::executeTranslationBlock(S2EExecutionState *state, Transla
 
     bool executeKlee = m_executeAlwaysKlee;
 
-    /* Think how can we optimize if symbex is disabled */
-    if (true /* state->m_symbexEnabled*/) {
-        if (state->m_startSymbexAtPC != (uint64_t) -1) {
-            executeKlee |= (state->regs()->getPc() == state->m_startSymbexAtPC);
-            state->m_startSymbexAtPC = (uint64_t) -1;
-        }
+    if (state->m_startSymbexAtPC != (uint64_t) -1) {
+        executeKlee |= (state->regs()->getPc() == state->m_startSymbexAtPC);
+        state->m_startSymbexAtPC = (uint64_t) -1;
+    }
 
-        // XXX: hack to run code symbolically that may be delayed because of interrupts.
-        // Size check is important to avoid expensive calls to getPc/getPid in the common case
-        if (state->m_toRunSymbolically.size() > 0 &&
-            state->m_toRunSymbolically.find(std::make_pair(state->regs()->getPc(), state->regs()->getPageDir())) !=
-                state->m_toRunSymbolically.end()) {
-            executeKlee = true;
-            state->m_toRunSymbolically.erase(std::make_pair(state->regs()->getPc(), state->regs()->getPageDir()));
-        }
-
-        if (!executeKlee) {
-            // XXX: This should be fixed to make sure that helpers do not read/write corrupted data
-            // because they think that execution is concrete while it should be symbolic (see issue #30).
-            if (!m_forceConcretizations) {
-                /* We can not execute TB natively if it reads any symbolic regs */
-                uint64_t smask = state->regs()->getSymbolicRegistersMask();
-                if (smask || (tb->helper_accesses_mem & 4)) {
-                    if ((smask & tb->reg_rmask) || (smask & tb->reg_wmask) || (tb->helper_accesses_mem & 4)) {
-                        /* TB reads symbolic variables */
-                        executeKlee = true;
-
-                    } else {
-                        se_tb_reset_jump_smask(tb, 0, smask);
-                        se_tb_reset_jump_smask(tb, 1, smask);
-                    }
-                }
-            } // forced concretizations
-        }
+    // XXX: hack to run code symbolically that may be delayed because of interrupts.
+    // Size check is important to avoid expensive calls to getPc/getPid in the common case
+    if (state->m_toRunSymbolically.size() > 0 &&
+        state->m_toRunSymbolically.find(std::make_pair(state->regs()->getPc(), state->regs()->getPageDir())) !=
+            state->m_toRunSymbolically.end()) {
+        executeKlee = true;
+        state->m_toRunSymbolically.erase(std::make_pair(state->regs()->getPc(), state->regs()->getPageDir()));
+    }
+    // s2e cannot execute TB natively if it reads any symbolic regs
+    auto allConcrete = state->regs()->allConcrete();
+    if(!allConcrete){
+        executeKlee= true;
     }
 
     if (executeKlee) {
@@ -2450,38 +2433,38 @@ void S2EExecutor::terminateStateAtFork(S2EExecutionState &state) {
     Executor::terminateState(state);
 }
 
-inline void S2EExecutor::setCCOpEflags(S2EExecutionState *state) {
-    uint32_t cc_op = 0;
+/* inline void S2EExecutor::setCCOpEflags(S2EExecutionState *state) { */
+    // uint32_t cc_op = 0;
 
-    // Check wether any of cc_op, cc_src, cc_dst or cc_tmp are symbolic
-    if (state->m_registers.flagsRegistersAreSymbolic() || m_executeAlwaysKlee) {
-        // call set_cc_op_eflags only if cc_op is symbolic or cc_op != CC_OP_EFLAGS
-        bool ok = state->regs()->read(CPU_OFFSET(cc_op), &cc_op, sizeof(cc_op), false);
-        if (!ok || cc_op != CC_OP_EFLAGS) {
-            try {
-                if (state->m_runningConcrete)
-                    switchToSymbolic(state);
-                if (EnableTimingLog) {
-                    TimerStatIncrementer t(stats::symbolicModeTime);
-                }
+    // // Check wether any of cc_op, cc_src, cc_dst or cc_tmp are symbolic
+    // if (state->m_registers.flagsRegistersAreSymbolic() || m_executeAlwaysKlee) {
+        // // call set_cc_op_eflags only if cc_op is symbolic or cc_op != CC_OP_EFLAGS
+        // bool ok = state->regs()->read(CPU_OFFSET(cc_op), &cc_op, sizeof(cc_op), false);
+        // if (!ok || cc_op != CC_OP_EFLAGS) {
+            // try {
+                // if (state->m_runningConcrete)
+                    // switchToSymbolic(state);
+                // if (EnableTimingLog) {
+                    // TimerStatIncrementer t(stats::symbolicModeTime);
+                // }
 
-                executeFunction(state, "helper_set_cc_op_eflags");
-            } catch (s2e::CpuExitException &) {
-                updateStates(state);
-                longjmp(env->jmp_env, 1);
-            }
-        }
-    } else {
-        bool ok = state->regs()->read(CPU_OFFSET(cc_op), &cc_op, sizeof(cc_op), false);
-        assert(ok);
-        if (cc_op != CC_OP_EFLAGS) {
-            if (!state->m_runningConcrete)
-                switchToConcrete(state);
-            // TimerStatIncrementer t(stats::concreteModeTime);
-            helper_set_cc_op_eflags();
-        }
-    }
-}
+                // executeFunction(state, "helper_set_cc_op_eflags");
+            // } catch (s2e::CpuExitException &) {
+                // updateStates(state);
+                // longjmp(env->jmp_env, 1);
+            // }
+        // }
+    // } else {
+        // bool ok = state->regs()->read(CPU_OFFSET(cc_op), &cc_op, sizeof(cc_op), false);
+        // assert(ok);
+        // if (cc_op != CC_OP_EFLAGS) {
+            // if (!state->m_runningConcrete)
+                // switchToConcrete(state);
+            // // TimerStatIncrementer t(stats::concreteModeTime);
+            // helper_set_cc_op_eflags();
+        // }
+    // }
+/* } */
 
 inline void S2EExecutor::doInterrupt(S2EExecutionState *state, int intno, int is_int, int error_code, uint64_t next_eip,
                                      int is_hw) {
@@ -2539,6 +2522,26 @@ void S2EExecutor::doInterruptAll(int intno, int is_int, int error_code, uintptr_
     g_s2e_state->setRunningExceptionEmulationCode(false);
 }
 
+void S2EExecutor::doInterruptARM(struct CPUARMState *env1){
+    g_s2e_state->setRunningExceptionEmulationCode(true);
+
+    if (unlikely(*g_s2e_on_exception_signals_count))
+        s2e_on_exception(env1->v7m.exception*4);
+
+    if (likely(g_s2e_fast_concrete_invocation)) {
+        if (unlikely(!g_s2e_state->isRunningConcrete())) {
+            s2e::S2EExecutor *executor = g_s2e->getExecutor();
+            executor->updateConcreteFastPath(g_s2e_state);
+            assert(g_s2e_fast_concrete_invocation);
+            executor->switchToConcrete(g_s2e_state);
+        }
+        se_do_interrupt_arm(env1);
+    } else {
+       // g_s2e->getExecutor()->doInterrupt(g_s2e_state, intno, is_int, error_code, next_eip, is_hw);
+    }
+
+    g_s2e_state->setRunningExceptionEmulationCode(false);
+}
 void S2EExecutor::setupTimersHandler() {
     m_s2e->getCorePlugin()->onTimer.connect(sigc::bind(sigc::ptr_fun(&onAlarm), 0));
 }
@@ -2670,7 +2673,7 @@ void s2e_initialize_execution(int execute_always_klee) {
     tcg_register_helper((void *) &s2e_tcg_custom_instruction_handler, "s2e_tcg_custom_instruction_handler");
 }
 
-void s2e_register_cpu(CPUX86State *cpu_env) {
+void s2e_register_cpu(CPUARMState *cpu_env) {
     g_s2e->getExecutor()->registerCpu(g_s2e_state, cpu_env);
 }
 
@@ -2697,10 +2700,10 @@ void s2e_libcpu_cleanup_tb_exec() {
     return g_s2e->getExecutor()->cleanupTranslationBlock(g_s2e_state);
 }
 
-void s2e_set_cc_op_eflags(struct CPUX86State *env1) {
-    env = env1;
-    g_s2e->getExecutor()->setCCOpEflags(g_s2e_state);
-}
+/* void s2e_set_cc_op_eflags(struct CPUARMState *env1) { */
+    // env = env1;
+    // g_s2e->getExecutor()->setCCOpEflags(g_s2e_state);
+/* } */
 
 void s2e_switch_to_symbolic(void *retaddr) {
     TranslationBlock *tb = tb_find_pc((uintptr_t) retaddr);
@@ -2777,7 +2780,7 @@ void se_flush_tlb_cache_page(void *objectState, int mmu_idx, int index) {
 }
 
 /** Tlb cache helpers */
-void s2e_update_tlb_entry(CPUX86State *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr) {
+void s2e_update_tlb_entry(CPUARMState *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr) {
 #if defined(SE_ENABLE_TLB) && defined(CONFIG_SYMBEX_MP)
     g_s2e_state->getTlb()->updateTlbEntry(env, mmu_idx, virtAddr, hostAddr);
 #endif

@@ -8,7 +8,15 @@
 
 extern "C" {
 // clang-format off
+#include <cpu/config.h>
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 #include <cpu/i386/cpu.h>
+#elif defined(TARGET_ARM)
+#include <cpu/arm/cpu.h>
+#else
+#error Unsupported target architecture
+#endif
+
 #include <cpu/exec.h>
 #include <tcg/tcg-op.h>
 
@@ -19,7 +27,7 @@ extern "C" {
 #define s2e_gen_flags_update instr_gen_flags_update
 
 // clang-format on
-extern struct CPUX86State *env;
+extern struct CPUARMState *env;
 void s2e_gen_pc_update(void *context, target_ulong pc, target_ulong cs_base);
 void s2e_gen_flags_update(void *context);
 }
@@ -35,15 +43,24 @@ void s2e_gen_flags_update(void *context);
 
 #include <s2e/CorePlugin.h>
 
+#include <s2e/Plugin.h>
 using namespace s2e;
 
 /********************************/
 /* Functions called from libcpu */
-
 extern "C" {
 
 int g_s2e_enable_signals = true;
 
+void s2e_tcg_make_peripheral_symbolic(uintptr_t addr, unsigned size) {
+    assert(!g_s2e->getCorePlugin()->onMakePerpherialSymbolic.empty() &&
+           "You must activate BaseInstructions plugin that uses custom instructions.");
+    try {
+        g_s2e->getCorePlugin()->onMakePerpherialSymbolic.emit(g_s2e_state,addr,size); 
+    } catch (s2e::CpuExitException &) {
+        longjmp(env->jmp_env, 1);
+    }
+}
 void s2e_tcg_execution_handler(void *signal, uint64_t pc) {
     try {
         ExecutionSignal *s = (ExecutionSignal *) signal;
@@ -96,7 +113,7 @@ static void s2e_tcg_instrument_code(ExecutionSignal *signal, uint64_t pc, uint64
         TCGv_i32 tpc = tcg_temp_new_i32();
         TCGv_ptr cpu_env = MAKE_TCGV_PTR(0);
         tcg_gen_movi_i32(tpc, (tcg_target_ulong) nextpc);
-        tcg_gen_st_i32(tpc, cpu_env, offsetof(CPUX86State, eip));
+        tcg_gen_st_i32(tpc, cpu_env, offsetof(CPUARMState, regs[15]));
         tcg_temp_free_i32(tpc);
 #endif
     }

@@ -17,7 +17,7 @@
 #include "S2EExecutionStateRegisters.h"
 
 extern "C" {
-struct CPUX86State;
+struct CPUARMState;
 }
 
 namespace s2e {
@@ -57,7 +57,7 @@ public:
 
     void flushTlbCachePage(klee::ObjectState *objectState, int mmu_idx, int index);
 
-    void updateTlbEntryConcreteStatus(struct CPUX86State *env, unsigned mmu_idx, unsigned index,
+    void updateTlbEntryConcreteStatus(struct CPUARMState *env, unsigned mmu_idx, unsigned index,
                                       const klee::ObjectState *state);
 
 #if defined(SE_ENABLE_PHYSRAM_TLB)
@@ -67,7 +67,7 @@ public:
 
     void clearTlbOwnership();
 
-    void updateTlbEntry(struct CPUX86State *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr);
+    void updateTlbEntry(struct CPUARMState *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr);
 
     bool audit();
 };

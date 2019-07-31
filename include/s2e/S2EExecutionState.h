@@ -27,8 +27,13 @@ struct TranslationBlock;
 struct TimersState;
 }
 
-// XXX
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 struct CPUX86State;
+#elif defined(TARGET_ARM)
+struct CPUARMState; 
+#else
+#error Unsupported target architecture
+#endif
 
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/SmallVector.h>
