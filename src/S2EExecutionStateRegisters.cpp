@@ -124,13 +124,23 @@ bool S2EExecutionStateRegisters::flagsRegistersAreSymbolic() const {
 }
 
 
-#if defined(TARGET_I386) || defined(TARGET_X86_64)
+
 bool S2EExecutionStateRegisters::readSymbolicRegion(unsigned offset, void *_buf, unsigned size, bool concretize) const {
-    static const char *regNames[] = {"eax", "ecx", "edx",   "ebx",    "esp",    "ebp",
-                                     "esi", "edi", "cc_op", "cc_src", "cc_dst", "cc_tmp"};
     assert(*m_active);
-    // assert(((uint64_t) env) == s_symbolicRegs->address);
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
+   static const char *regNames[] = {"eax", "ecx", "edx",   "ebx",    "esp",    "ebp",
+                                     "esi", "edi", "cc_op", "cc_src", "cc_dst", "cc_tmp"};
     assert(offset + size <= CPU_OFFSET(eip));
+#elif defined(TARGET_ARM)
+    static const char *regNames[] =
+    { "r0", "r1", "r2", "r3", "r4", "r5", "r6", "r7",
+      "r8", "r9", "r10", "r11", "r12", "r13", "r14", "pc" };
+    assert(offset + size <= CPU_OFFSET(regs[15]));
+#else
+#error Unsupported target architecture
+#endif
+
+    // assert(((uint64_t) env) == s_symbolicRegs->address);
 
     /* Simple case, the register is concrete */
     if (likely(*m_runningConcrete &&
@@ -189,7 +199,6 @@ bool S2EExecutionStateRegisters::readSymbolicRegion(unsigned offset, void *_buf,
 
     return true;
 }
-#endif
 void S2EExecutionStateRegisters::writeSymbolicRegion(unsigned offset, const void *_buf, unsigned size) {
     assert(*m_active);
     assert(((uint64_t) env) == s_symbolicRegs->address);
