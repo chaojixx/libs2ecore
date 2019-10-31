@@ -101,7 +101,7 @@ void handleForkAndConcretize(Executor *executor, ExecutionState *state, klee::KI
 
     s2eExecutor->notifyFork(*state, condition, sp);
 }
-
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 static void handleGetValue(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
                            std::vector<klee::ref<klee::Expr>> &args) {
     S2EExecutionState *s2eState = static_cast<S2EExecutionState *>(state);
@@ -121,6 +121,7 @@ static void handleGetValue(klee::Executor *executor, klee::ExecutionState *state
     std::vector<klee::ref<Expr>> result;
     s2eState->kleeReadMemory(kleeAddress, sizeInBytes, nullptr, false, true, add_constraint);
 }
+#endif
 
 static void handlerWriteMemIoVaddr(klee::Executor *executor, klee::ExecutionState *state, klee::KInstruction *target,
                                    std::vector<klee::ref<klee::Expr>> &args) {
@@ -268,7 +269,7 @@ static void handlerTraceMmioAccess(Executor *executor, ExecutionState *state, kl
         state->bindLocal(target, ret);
     }
 }
-
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 static void handlerTracePortAccess(Executor *executor, ExecutionState *state, klee::KInstruction *target,
                                    std::vector<klee::ref<klee::Expr>> &args) {
     assert(args.size() == 4);
@@ -311,14 +312,17 @@ static void handlerTracePortAccess(Executor *executor, ExecutionState *state, kl
         g_s2e->getCorePlugin()->onPortAccess.emit(s2eState, port, resizedValue, isWrite);
     }
 }
+#endif
 
 static Handler s_handlers[] = {{"tcg_llvm_write_mem_io_vaddr", handlerWriteMemIoVaddr, nullptr},
                                {"tcg_llvm_before_memory_access", handlerBeforeMemoryAccess, nullptr},
                                {"tcg_llvm_after_memory_access", handlerAfterMemoryAccess, nullptr},
-                               {"tcg_llvm_trace_port_access", handlerTracePortAccess, nullptr},
                                {"tcg_llvm_trace_mmio_access", handlerTraceMmioAccess, nullptr},
                                {"tcg_llvm_fork_and_concretize", handleForkAndConcretize, nullptr},
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
+                               {"tcg_llvm_trace_port_access", handlerTracePortAccess, nullptr},
                                {"tcg_llvm_get_value", handleGetValue, nullptr},
+#endif
                                {"", nullptr, nullptr}};
 
 void S2EExecutor::registerFunctionHandlers(llvm::Module &module) {

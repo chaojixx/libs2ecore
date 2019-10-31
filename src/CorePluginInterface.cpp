@@ -8,7 +8,14 @@
 
 extern "C" {
 // clang-format off
+#include <s2e/s2e_config.h>
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 #include <cpu/i386/cpu.h>
+#elif defined(TARGET_ARM)
+#include <cpu/arm/cpu.h>
+#else
+#error Unsupported target architecture
+#endif
 #include <tcg/tcg-op.h>
 
 #include <cpu/exec.h>
@@ -20,7 +27,7 @@ extern "C" {
 #define s2e_gen_flags_update instr_gen_flags_update
 
 // clang-format on
-extern struct CPUX86State *env;
+extern CPUArchState *env;
 void s2e_gen_pc_update(void *context, target_ulong pc, target_ulong cs_base);
 void s2e_gen_flags_update(void *context);
 }
@@ -85,12 +92,18 @@ static void s2e_tcg_instrument_code(ExecutionSignal *signal, uint64_t pc, uint64
     if (nextpc != (uint64_t) -1) {
 #if TCG_TARGET_REG_BITS == 64 && defined(TARGET_X86_64)
         TCGv_i64 tpc = tcg_const_i64((tcg_target_ulong) nextpc);
-        tcg_gen_st_i64(tpc, cpu_env, offsetof(CPUX86State, eip));
+        tcg_gen_st_i64(tpc, cpu_env, offsetof(CPUArchState, eip));
         tcg_temp_free_i64(tpc);
-#else
+#elif  defined(TARGET_I386)
         TCGv_i32 tpc = tcg_const_i32((tcg_target_ulong) nextpc);
-        tcg_gen_st_i32(tpc, cpu_env, offsetof(CPUX86State, eip));
+        tcg_gen_st_i32(tpc, cpu_env, offsetof(CPUArchState, eip));
         tcg_temp_free_i32(tpc);
+#elif  defined(TARGET_ARM)
+        TCGv_i32 tpc = tcg_const_i32((tcg_target_ulong) nextpc);
+        tcg_gen_st_i32(tpc, cpu_env, offsetof(CPUArchState, regs[15]));
+        tcg_temp_free_i32(tpc);
+#else
+#error Unsupported target architecture
 #endif
     }
 
