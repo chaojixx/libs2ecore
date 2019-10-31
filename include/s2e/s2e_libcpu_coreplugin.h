@@ -65,6 +65,8 @@ void s2e_on_exception(unsigned intNb);
 
 int s2e_on_call_return_translate(uint64_t pc, int isCall);
 
+/**peripherals symbolic*/
+void s2e_tcg_make_peripheral_symbolic(uintptr_t address, unsigned size);
 /** Called on memory accesses from generated code */
 #define MEM_TRACE_FLAG_IO 1
 #define MEM_TRACE_FLAG_WRITE 2

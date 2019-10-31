@@ -258,7 +258,7 @@ static void handlerTraceMmioAccess(Executor *executor, ExecutionState *state, kl
         state->bindLocal(target, ret);
     }
 }
-
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 static void handlerTracePortAccess(Executor *executor, ExecutionState *state, klee::KInstruction *target,
                                    std::vector<klee::ref<klee::Expr>> &args) {
     assert(args.size() == 4);
@@ -301,7 +301,10 @@ static void handlerTracePortAccess(Executor *executor, ExecutionState *state, kl
         g_s2e->getCorePlugin()->onPortAccess.emit(s2eState, port, resizedValue, isWrite);
     }
 }
+#endif
 
+
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 static Handler s_handlers[] = {{"tcg_llvm_write_mem_io_vaddr", handlerWriteMemIoVaddr, nullptr},
                                {"tcg_llvm_before_memory_access", handlerBeforeMemoryAccess, nullptr},
                                {"tcg_llvm_after_memory_access", handlerAfterMemoryAccess, nullptr},
@@ -312,6 +315,20 @@ static Handler s_handlers[] = {{"tcg_llvm_write_mem_io_vaddr", handlerWriteMemIo
                                {"tcg_llvm_trace_instruction", handleGetValue,
                                 [](Module &M) { return FunctionType::get(Type::getVoidTy(M.getContext()), false); }},
                                {"", nullptr, nullptr}};
+#elif defined(TARGET_ARM)
+static Handler s_handlers[] = {{"tcg_llvm_write_mem_io_vaddr", handlerWriteMemIoVaddr, nullptr},
+                               {"tcg_llvm_before_memory_access", handlerBeforeMemoryAccess, nullptr},
+                               {"tcg_llvm_after_memory_access", handlerAfterMemoryAccess, nullptr},
+                               {"tcg_llvm_trace_mmio_access", handlerTraceMmioAccess, nullptr},
+                               {"tcg_llvm_fork_and_concretize", handleForkAndConcretize, nullptr},
+                               {"tcg_llvm_trace_instruction", handleGetValue,
+                                [](Module &M) { return FunctionType::get(Type::getVoidTy(M.getContext()), false); }},
+                               {"", nullptr, nullptr}};
+#else
+#error Unsupported target architecture
+#endif
+
+
 
 void S2EExecutor::registerFunctionHandlers(llvm::Module &module) {
     for (unsigned i = 0; s_handlers[i].handler; ++i) {

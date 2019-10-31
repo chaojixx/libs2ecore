@@ -30,7 +30,7 @@ struct TCGLLVMContext;
 struct MemoryDesc;
 
 // XXX
-struct CPUX86State;
+//CPUArchState;
 
 #ifdef __cplusplus
 extern "C" {
@@ -89,7 +89,7 @@ void s2e_create_initial_state(void);
     libcpu pc is completely constructed */
 void s2e_initialize_execution(int execute_always_klee);
 
-void s2e_register_cpu(struct CPUX86State *cpu_env);
+void s2e_register_cpu(CPUArchState *cpu_env);
 
 void s2e_register_ram(struct MemoryDesc *region, uint64_t start_address, uint64_t size, uint64_t host_address,
                       int is_shared_concrete, int save_on_context_switch, const char *name);
@@ -112,8 +112,10 @@ void s2e_read_register_concrete(unsigned offset, uint8_t *buf, unsigned size);
 
 void s2e_write_register_concrete(unsigned offset, uint8_t *buf, unsigned size);
 
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 /* helpers that should be run as LLVM functions */
-void s2e_set_cc_op_eflags(struct CPUX86State *state);
+void s2e_set_cc_op_eflags(CPUArchState *state);
+#endif
 
 /** Allocate S2E parts of the tanslation block. Called from tb_alloc() */
 void se_tb_alloc(struct TranslationBlock *tb);
@@ -127,7 +129,7 @@ void s2e_set_tb_function(struct TranslationBlock *tb);
 
 int s2e_is_tb_instrumented(struct TranslationBlock *tb);
 
-void se_tb_gen_llvm(struct CPUX86State *env, struct TranslationBlock *tb);
+void se_tb_gen_llvm(CPUArchState *env, struct TranslationBlock *tb);
 
 void s2e_flush_tb_cache();
 void s2e_increment_tb_stats(struct TranslationBlock *tb);
@@ -169,7 +171,7 @@ int se_is_mmio_symbolic_w(struct MemoryDesc *mr, uint64_t address);
 int se_is_mmio_symbolic_l(struct MemoryDesc *mr, uint64_t address);
 int se_is_mmio_symbolic_q(struct MemoryDesc *mr, uint64_t address);
 
-void s2e_update_tlb_entry(struct CPUX86State *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr);
+void s2e_update_tlb_entry(CPUArchState *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr);
 
 void s2e_register_dirty_mask(uint64_t host_address, uint64_t size);
 uint8_t se_read_dirty_mask(uint64_t host_address);

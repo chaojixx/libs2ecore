@@ -15,12 +15,11 @@
 #include <klee/IAddressSpaceNotification.h>
 #include <klee/IConcretizer.h>
 #include <klee/Memory.h>
+// use CPUArchState for cpu compatibility
+#include <cpu/se_libcpu.h>
 
-extern "C" {
-struct CPUX86State;
-}
 
-#define CPU_OFFSET(field) offsetof(CPUX86State, field)
+#define CPU_OFFSET(field) offsetof(CPUArchState, field)
 
 namespace s2e {
 
@@ -118,13 +117,14 @@ public:
     /// data of the cpu registers reside. It can either point
     /// to the backing store if the state is inactive, or to
     /// the global CPUState object if active.
-    CPUX86State *getCpuState() const;
+    CPUArchState *getCpuState() const;
 
     bool allConcrete() const {
         return m_symbolicRegs->isAllConcrete();
     }
-
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     bool flagsRegistersAreSymbolic() const;
+#endif
 
     static bool initialized() {
         return s_concreteRegs != nullptr && s_symbolicRegs != nullptr;
@@ -242,7 +242,13 @@ public:
     ///
     /// \return the frame pointer
     ///
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     uint64_t getBp() const;
+#elif defined(TARGET_ARM)
+    uint64_t getLr() const;
+#else
+#error Unsupported target architecture
+#endif
 
     ///
     /// \brief Read the content of the stack pointer register
@@ -252,6 +258,9 @@ public:
     /// \return the stack pointer
     ///
     uint64_t getSp() const;
+
+
+
 
     ///
     /// \brief Read the content of the program counter
@@ -281,7 +290,14 @@ public:
     /// \brief Write to the frame pointer register
     /// \param bp the new value of the frame pointer
     ///
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     void setBp(uint64_t bp);
+#elif defined(TARGET_ARM)
+    void setLr(uint64_t lr);
+#else
+#error Unsupported target architecture
+#endif
+
 
     ///
     /// \brief Write to the stack pointer register

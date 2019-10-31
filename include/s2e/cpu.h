@@ -18,19 +18,28 @@
 #ifndef __S2E_CPU_H__
 
 #define __S2E_CPU_H__
-
+#include "s2e_config.h"
 #ifdef __cplusplus
 extern "C" {
 #endif
-
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 #include <cpu/i386/cpu.h>
 #include <cpu/i386/helper.h>
+#elif defined(TARGET_ARM)
+#include <cpu/arm/cpu.h>
+#include <cpu/arm/helper.h>
+#else
+#error Unsupported target architecture
+#endif
+
 #include <cpu/exec.h>
 #include <cpu/cpu-common.h>
 #include <libcpu-compiler.h>
 #include <cpu/se_libcpu.h>
 #include <cpu/tlb.h>
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 #include <cpu/apic.h>
+#endif
 #include <cpu/ioport.h>
 #include <cpu/cpus.h>
 #include <cpu/disas.h>
@@ -56,12 +65,14 @@ int s2e_dev_restore(void *buffer, int pos, size_t size);
 #define fast_jmp_buf jmp_buf
 
 
-extern struct CPUX86State *env;
+extern CPUArchState *env;
 void LIBCPU_NORETURN raise_exception(int exception_index);
 void LIBCPU_NORETURN raise_exception_err(int exception_index, int error_code);
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 extern const uint8_t parity_table[256];
 extern const uint8_t rclw_table[32];
 extern const uint8_t rclb_table[32];
+#endif
 
 void se_do_interrupt_all(int intno, int is_int, int error_code,
                              target_ulong next_eip, int is_hw);

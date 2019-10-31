@@ -11,6 +11,8 @@
 
 #include <unordered_map>
 
+// Undefine cat from "compiler.h"
+#undef cat
 #include <klee/Executor.h>
 #include <llvm/Support/raw_ostream.h>
 #include <s2e/s2e_libcpu.h>
@@ -19,7 +21,7 @@
 struct TCGLLVMContext;
 
 struct TranslationBlock;
-struct CPUX86State;
+CPUArchState;
 
 namespace klee {
 struct Query;
@@ -78,7 +80,14 @@ public:
 
     void initializeExecution(S2EExecutionState *initialState, bool executeAlwaysKlee);
 
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     void registerCpu(S2EExecutionState *initialState, CPUX86State *cpuEnv);
+#elif defined(TARGET_ARM)
+    void registerCpu(S2EExecutionState *initialState, CPUARMState *cpuEnv);
+#else
+#error Unsupported target architecture
+#endif
+
     void registerRam(S2EExecutionState *initialState, struct MemoryDesc *region, uint64_t startAddress, uint64_t size,
                      uint64_t hostAddress, bool isSharedConcrete, bool saveOnContextSwitch = true,
                      const char *name = "");
@@ -100,8 +109,8 @@ public:
 
     uintptr_t executeTranslationBlock(S2EExecutionState *state, TranslationBlock *tb);
 
-    static uintptr_t executeTranslationBlockSlow(struct CPUX86State *env1, struct TranslationBlock *tb);
-    static uintptr_t executeTranslationBlockFast(struct CPUX86State *env1, struct TranslationBlock *tb);
+    static uintptr_t executeTranslationBlockSlow(CPUArchState *env1, struct TranslationBlock *tb);
+    static uintptr_t executeTranslationBlockFast(CPUArchState *env1, struct TranslationBlock *tb);
 
     /* Returns true if the CPU loop must be exited */
     bool finalizeTranslationBlockExec(S2EExecutionState *state);
@@ -113,10 +122,16 @@ public:
 
     void updateStates(klee::ExecutionState *current);
 
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     void setCCOpEflags(S2EExecutionState *state);
+#endif
+
     void doInterrupt(S2EExecutionState *state, int intno, int is_int, int error_code, uint64_t next_eip, int is_hw);
 
     static void doInterruptAll(int intno, int is_int, int error_code, uintptr_t next_eip, int is_hw);
+#if defined(TARGET_ARM)
+    static void doInterruptARM(struct CPUARMState *env1);
+#endif
 
     /** Suspend the given state (does not kill it) */
     bool suspendState(S2EExecutionState *state);

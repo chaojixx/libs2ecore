@@ -53,7 +53,7 @@ void S2EExecutionStateTlb::addressSpaceChangeUpdateTlb(const klee::MemoryObject 
 #if defined(SE_ENABLE_PHYSRAM_TLB)
 void S2EExecutionStateTlb::updateRamTlb(const klee::MemoryObject *mo, const klee::ObjectState *oldState,
                                         klee::ObjectState *newState) {
-    CPUX86State *cpu = m_registers->getCpuState();
+    CPUArchState *cpu = m_registers->getCpuState();
     uintptr_t tlb_index = (mo->address >> 12) & (CPU_TLB_SIZE - 1);
     CPUTLBRAMEntry *re = &cpu->se_ram_tlb[tlb_index];
 
@@ -74,7 +74,7 @@ void S2EExecutionStateTlb::updateRamTlb(const klee::MemoryObject *mo, const klee
 void S2EExecutionStateTlb::updateTlb(const klee::MemoryObject *mo, const klee::ObjectState *oldState,
                                      klee::ObjectState *newState) {
 
-    CPUX86State *cpu = m_registers->getCpuState();
+    CPUArchState *cpu = m_registers->getCpuState();
 
     if (g_s2e_single_path_mode) {
         llvm::errs() << "Multi-path mode disabled.\n";
@@ -183,7 +183,7 @@ void S2EExecutionStateTlb::flushTlbCachePage(klee::ObjectState *objectState, int
  * If a page contains at least one byte of symbolic data, it will go through
  * the slow path. Otherwise, softmmu will directly access the concrete array.
  */
-void S2EExecutionStateTlb::updateTlbEntryConcreteStatus(CPUX86State *env, unsigned mmu_idx, unsigned index,
+void S2EExecutionStateTlb::updateTlbEntryConcreteStatus(CPUArchState *env, unsigned mmu_idx, unsigned index,
                                                         const klee::ObjectState *state) {
     CPUTLBEntry *te = &env->tlb_table[mmu_idx][index];
 
@@ -216,7 +216,7 @@ void S2EExecutionStateTlb::clearRamTlb() {
 #endif
 
 void S2EExecutionStateTlb::clearTlbOwnership() {
-    CPUX86State *env = m_registers->getCpuState();
+    CPUArchState *env = m_registers->getCpuState();
 
     for (unsigned i = 0; i < CPU_TLB_SIZE; i++) {
         for (unsigned mmu_idx = 0; mmu_idx < NB_MMU_MODES; mmu_idx++) {
@@ -225,7 +225,7 @@ void S2EExecutionStateTlb::clearTlbOwnership() {
     }
 }
 
-void S2EExecutionStateTlb::updateTlbEntry(CPUX86State *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr) {
+void S2EExecutionStateTlb::updateTlbEntry(CPUArchState *env, int mmu_idx, uint64_t virtAddr, uint64_t hostAddr) {
     assert((hostAddr & ~TARGET_PAGE_MASK) == 0);
     assert((virtAddr & ~TARGET_PAGE_MASK) == 0);
 
@@ -288,7 +288,7 @@ bool S2EExecutionStateTlb::audit() {
      * Go through the TLB and make sure that all object states are
      * properly referenced.
      */
-    CPUX86State *env = m_registers->getCpuState();
+    CPUArchState *env = m_registers->getCpuState();
 
     foreach2 (tlbIt, m_tlbMap.begin(), m_tlbMap.end()) {
         const ObjectState *os = (*tlbIt).first;

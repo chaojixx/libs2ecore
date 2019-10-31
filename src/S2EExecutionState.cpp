@@ -665,7 +665,7 @@ bool S2EExecutionState::merge(const ExecutionState &_b) {
         s << "]" << '\n';
     }
 
-    /* Check CPUX86State */
+    /* Check CPUArchState */
     {
         if (m_registers.compareArchitecturalConcreteState(b.m_registers)) {
             if (DebugLogStateMerge)
@@ -1033,6 +1033,7 @@ bool S2EExecutionState::getStaticBranchTargets(uint64_t *truePc, uint64_t *false
 }
 
 unsigned S2EExecutionState::getPointerSize() const {
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     TranslationBlock *tb = getTb();
     bool is32 = (tb->flags >> HF_CS32_SHIFT) & 1;
     bool is64 = (tb->flags >> HF_CS64_SHIFT) & 1;
@@ -1043,6 +1044,11 @@ unsigned S2EExecutionState::getPointerSize() const {
     } else {
         return 2;
     }
+#elif defined(TARGET_ARM)
+    return 4;
+#else
+#error Unsupported target architecture
+#endif
 }
 
 static int __disas_print(FILE *fp, const char *fmt, ...) {
@@ -1126,7 +1132,7 @@ void se_write_dirty_mask(uint64_t host_address, uint8_t val) {
 static inline CPUTLBRAMEntry *s2e_get_ram_tlb_entry(uint64_t host_address) {
 #if defined(SE_ENABLE_PHYSRAM_TLB)
     uintptr_t tlb_index = (host_address >> 12) & (CPU_TLB_SIZE - 1);
-    CPUX86State *env = g_s2e_state->regs()->getCpuState();
+    CPUArchState *env = g_s2e_state->regs()->getCpuState();
     return &env->se_ram_tlb[tlb_index];
 #else
     return nullptr;

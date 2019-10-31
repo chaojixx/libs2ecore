@@ -27,8 +27,7 @@ struct TranslationBlock;
 struct TimersState;
 }
 
-// XXX
-struct CPUX86State;
+
 
 #include <llvm/ADT/DenseMap.h>
 #include <llvm/ADT/SmallVector.h>
