@@ -77,9 +77,15 @@ extern const uint8_t rclw_table[32];
 extern const uint8_t rclb_table[32];
 #endif
 
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 void se_do_interrupt_all(int intno, int is_int, int error_code,
                              target_ulong next_eip, int is_hw);
 uint64_t helper_set_cc_op_eflags(void);
+#elif defined(TARGET_ARM)
+void se_do_interrupt_arm(void);
+#else
+#error Unsupported target architecture
+#endif
 
 void s2e_gen_pc_update(void *context, target_ulong pc, target_ulong cs_base);
 void s2e_gen_flags_update(void *context);
