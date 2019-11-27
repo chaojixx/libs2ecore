@@ -218,11 +218,14 @@ extern "C" {
     char *g_s2e_running_concrete = nullptr;
 
     char *g_s2e_running_exception_emulation_code = nullptr;
-
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     se_do_interrupt_all_t g_s2e_do_interrupt_all = &s2e::S2EExecutor::doInterruptAll;
-#if defined(TARGET_ARM)
+#elif defined(TARGET_ARM)
     se_do_interrupt_arm_t g_s2e_do_interrupt_arm = &s2e::S2EExecutor::doInterruptARM;
+#else
+#error Unsupported target architecture
 #endif
+
     //Shortcut to speed up access to the dirty mask (it is always concrete)
     uintptr_t g_se_dirty_mask_addend = 0;
 
@@ -312,6 +315,7 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMContext *tcgLLVMContext, InterpreterHa
     __DEFINE_EXT_FUNCTION(check_hw_breakpoints)
 #elif defined(TARGET_ARM)
     __DEFINE_EXT_FUNCTION(cpu_arm_handle_mmu_fault)
+    __DEFINE_EXT_FUNCTION(se_helper_do_interrupt_arm)
 #else
 #error Unsupported target architecture
 #endif
@@ -900,7 +904,6 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
 
         // XXX: specify which state should be used
         s2e_kvm_restore_device_state();
-
         foreach2 (it, m_saveOnContextSwitch.begin(), m_saveOnContextSwitch.end()) {
             MemoryObject *mo = *it;
             const ObjectState *newOS = newState->addressSpace.findObject(mo);
@@ -1701,8 +1704,8 @@ void S2EExecutor::terminateState(ExecutionState &s) {
     }
 }
 
-#if defined(TARGET_I386) || defined(TARGET_X86_64)
 inline void S2EExecutor::setCCOpEflags(S2EExecutionState *state) {
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     uint32_t cc_op = 0;
 
     // Check wether any of cc_op, cc_src, cc_dst or cc_tmp are symbolic
@@ -1734,9 +1737,15 @@ inline void S2EExecutor::setCCOpEflags(S2EExecutionState *state) {
             helper_set_cc_op_eflags();
         }
     }
-}
+#elif defined(TARGET_ARM)
+    //not needed for ARM
 #endif
-
+}
+/* Note that each QEMU target have different handlers naming and signature:
+ * on ARM - do_interrupt()/s2e_do_interrupt() - 0 args
+ * on X86 - do_interrupt_all()/s2e_do_interrupt_all() - 5 args
+ */
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
 inline void S2EExecutor::doInterrupt(S2EExecutionState *state, int intno, int is_int, int error_code, uint64_t next_eip,
                                      int is_hw) {
     if (state->m_registers.allConcrete() && !m_executeAlwaysKlee) {
@@ -1766,31 +1775,6 @@ inline void S2EExecutor::doInterrupt(S2EExecutionState *state, int intno, int is
         }
     }
 }
-#if defined(TARGET_ARM)
-void S2EExecutor::doInterruptARM(CPUArchState *env1){
-    g_s2e_state->setRunningExceptionEmulationCode(true);
-
-    if (unlikely(*g_s2e_on_exception_signals_count))
-        s2e_on_exception(env1->v7m.exception*4);
-
-    if (likely(g_s2e_fast_concrete_invocation)) {
-        if (unlikely(!g_s2e_state->isRunningConcrete())) {
-            s2e::S2EExecutor *executor = g_s2e->getExecutor();
-            executor->updateConcreteFastPath(g_s2e_state);
-            assert(g_s2e_fast_concrete_invocation);
-            g_s2e_state->switchToConcrete();
-        }
-        se_do_interrupt_arm(env1);
-    } else {
-       g_s2e->getWarningsStream() << "Need Symbolic execution interrupt\n";
-       // g_s2e->getExecutor()->doInterrupt(g_s2e_state, intno, is_int, error_code, next_eip, is_hw);
-    }
-
-    g_s2e_state->setRunningExceptionEmulationCode(false);
-}
-#endif
-
-
 
 /**
  *  We also need to track when execution enters/exits emulation code.
@@ -1819,6 +1803,59 @@ void S2EExecutor::doInterruptAll(int intno, int is_int, int error_code, uintptr_
 
     g_s2e_state->setRunningExceptionEmulationCode(false);
 }
+#elif defined(TARGET_ARM)
+inline void S2EExecutor::doInterrupt(S2EExecutionState *state) {
+    if (state->m_registers.allConcrete() && !m_executeAlwaysKlee) {
+        if (!state->isRunningConcrete()) {
+            state->switchToConcrete();
+        }
+        // TimerStatIncrementer t(stats::concreteModeTime);
+        se_do_interrupt_arm();
+    } else {
+        g_s2e->getWarningsStream() << "Symbolic Execution Interrupt\n";
+        if (state->isRunningConcrete()) {
+            state->switchToSymbolic();
+        }
+        std::vector<klee::ref<klee::Expr>> args(0);
+        try {
+            if (EnableTimingLog) {
+                TimerStatIncrementer t(stats::symbolicModeTime);
+            }
+            executeFunction(state, "se_do_interrupt_arm", args);
+        } catch (s2e::CpuExitException &) {
+            updateStates(state);
+            longjmp(env->jmp_env, 1);
+        }
+    }
+}
+
+void S2EExecutor::doInterruptARM(void){
+    g_s2e_state->setRunningExceptionEmulationCode(true);
+
+    if (unlikely(*g_s2e_on_exception_signals_count))
+        s2e_on_exception(env->v7m.vecbase + env->v7m.exception*4);
+
+    if (likely(g_s2e_fast_concrete_invocation)) {
+        if (unlikely(!g_s2e_state->isRunningConcrete())) {
+            s2e::S2EExecutor *executor = g_s2e->getExecutor();
+            executor->updateConcreteFastPath(g_s2e_state);
+            assert(g_s2e_fast_concrete_invocation);
+            g_s2e_state->switchToConcrete();
+        }
+        se_do_interrupt_arm();
+    } else {
+       g_s2e->getExecutor()->doInterrupt(g_s2e_state);
+    }
+
+    g_s2e_state->setRunningExceptionEmulationCode(false);
+}
+#else
+#error Unsupported target architecture
+#endif
+
+
+
+
 
 void S2EExecutor::setupTimersHandler() {
     m_s2e->getCorePlugin()->onTimer.connect(sigc::bind(sigc::ptr_fun(&onAlarm), 0));

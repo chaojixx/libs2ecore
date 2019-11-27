@@ -122,15 +122,15 @@ public:
 
     void updateStates(klee::ExecutionState *current);
 
-#if defined(TARGET_I386) || defined(TARGET_X86_64)
     void setCCOpEflags(S2EExecutionState *state);
-#endif
-
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     void doInterrupt(S2EExecutionState *state, int intno, int is_int, int error_code, uint64_t next_eip, int is_hw);
-
     static void doInterruptAll(int intno, int is_int, int error_code, uintptr_t next_eip, int is_hw);
-#if defined(TARGET_ARM)
-    static void doInterruptARM(struct CPUARMState *env1);
+#elif defined(TARGET_ARM)
+    void doInterrupt(S2EExecutionState *state);
+    static void doInterruptARM(void);
+#else
+#error Unsupported target architecture
 #endif
 
     /** Suspend the given state (does not kill it) */
