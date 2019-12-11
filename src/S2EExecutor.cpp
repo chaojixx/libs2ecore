@@ -1129,10 +1129,7 @@ void S2EExecutor::updateClockScaling() {
 
     if (g_s2e_fast_concrete_invocation) {
         // Concrete execution
-        scaling = timers_state.cpu_clock_scale_factor / 2;
-        if (scaling == 0) {
-            scaling = ClockSlowDownConcrete;
-        }
+        scaling = ClockSlowDownConcrete;
     } else {
         // Symbolic execution
         scaling = UseFastHelpers ? ClockSlowDownFastHelpers : ClockSlowDown;
