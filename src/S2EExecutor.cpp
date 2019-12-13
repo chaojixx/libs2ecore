@@ -134,7 +134,7 @@ namespace {
     cl::opt<bool>
     VerboseStateSwitching("verbose-state-switching",
             cl::desc("Print detailed information on state switches"),
-            cl::init(false));
+            cl::init(true));
 
     cl::opt<bool>
     VerboseTbFinalize("verbose-tb-finalize",
@@ -177,7 +177,7 @@ namespace {
 cl::opt<bool>
 PrintModeSwitch("print-mode-switch",
             cl::desc("Print message when switching from symbolic to concrete and vice versa"),
-            cl::init(false));
+            cl::init(true));
 
 cl::opt<bool>
 PrintForkingStatus("print-forking-status",
@@ -874,6 +874,8 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
         *oldState->m_timersState = timers_state;
 
         oldState->m_registers.saveConcreteState();
+        m_s2e->getDebugStream(oldState) << "old sp=" << hexval(oldState->regs()->getSp())
+                                     << "\n";
         oldState->m_active = false;
     }
 
@@ -913,6 +915,8 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
             totalCopied += mo->size;
             objectsCopied++;
         }
+        m_s2e->getDebugStream(newState) << "new sp=" << hexval(newState->regs()->getSp())
+                                     << "\n";
     }
 
     cpu_enable_ticks();
