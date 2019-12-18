@@ -53,6 +53,7 @@ extern "C" {
 void s2e_kvm_flush_disk(void);
 void s2e_kvm_save_device_state(void);
 void s2e_kvm_restore_device_state(void);
+void s2e_kvm_sync_sregs(void);
 void s2e_kvm_clone_process(void);
 
 // Called by the kvm interface

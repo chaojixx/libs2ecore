@@ -895,6 +895,9 @@ void S2EExecutor::doStateSwitch(S2EExecutionState *oldState, S2EExecutionState *
         newState->m_registers.restoreConcreteState();
 
         memcpy(&env->jmp_env, &jmp_env, sizeof(jmp_buf));
+        // since the cpu state struct is different between kvm env and cpu env
+        // we need to sync some sregs after sregs restore.
+        s2e_kvm_sync_sregs();
 
         newState->m_active = true;
 
