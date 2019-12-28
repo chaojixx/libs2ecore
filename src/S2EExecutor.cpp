@@ -557,13 +557,13 @@ void S2EExecutor::registerCpu(S2EExecutionState *initialState, CPUArchState *cpu
                                           /* isSharedConcrete = */ true);
 #elif defined(TARGET_ARM)
     /* Add registers and eflags area as a true symbolic area */
-    auto symbolicRegs = addExternalObject(*initialState, cpuEnv, offsetof(CPUArchState, regs[15]),
+    auto symbolicRegs = addExternalObject(*initialState, cpuEnv, offsetof(CPUArchState, regs[13]),
                                           /* isReadOnly = */ false,
                                           /* isSharedConcrete = */ false);
 
     /* Add the rest of the structure as concrete-only area */
-    auto concreteRegs = addExternalObject(*initialState, ((uint8_t *) cpuEnv) + offsetof(CPUArchState, regs[15]),
-                                          sizeof(CPUArchState) - offsetof(CPUArchState, regs[15]),
+    auto concreteRegs = addExternalObject(*initialState, ((uint8_t *) cpuEnv) + offsetof(CPUArchState, regs[13]),
+                                          sizeof(CPUArchState) - offsetof(CPUArchState, regs[13]),
                                           /* isReadOnly = */ false,
                                           /* isSharedConcrete = */ true);
 #else

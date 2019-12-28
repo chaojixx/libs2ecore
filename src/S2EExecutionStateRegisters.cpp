@@ -20,7 +20,7 @@
 #if defined(TARGET_I386) || defined(TARGET_X86_64)
 #define DIV eip
 #elif defined(TARGET_ARM)
-#define DIV regs[15]
+#define DIV regs[13]
 #else
 #error Unsupported target architecture
 #endif
@@ -357,7 +357,7 @@ int S2EExecutionStateRegisters::compareArchitecturalConcreteState(const S2EExecu
 #if defined(TARGET_I386) || defined(TARGET_X86_64)
     int ret = memcmp(&a->eip, &b->eip, CPU_OFFSET(se_common_start) - CPU_OFFSET(DIV));
 #elif defined(TARGET_ARM)
-    int ret = memcmp(&a->regs[15], &b->regs[15], CPU_OFFSET(se_common_start) - CPU_OFFSET(DIV));
+    int ret = memcmp(&a->regs[13], &b->regs[13], CPU_OFFSET(se_common_start) - CPU_OFFSET(DIV));
 #else
 #error Unsupported target architecture
 #endif
