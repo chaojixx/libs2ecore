@@ -134,12 +134,20 @@ bool S2EExecutionStateRegisters::flagsRegistersAreSymbolic() const {
 #endif
 
 bool S2EExecutionStateRegisters::readSymbolicRegion(unsigned offset, void *_buf, unsigned size, bool concretize) const {
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     static const char *regNames[] = {"eax", "ecx", "edx",   "ebx",    "esp",    "ebp",
                                      "esi", "edi", "cc_op", "cc_src", "cc_dst", "cc_tmp"};
+#elif defined(TARGET_ARM)
+    static const char *regNames[] = {"regs[0]", "regs[1]", "regs[2]", "regs[3]", "regs[4]", "regs[5]",
+                                     "regs[6]", "regs[7]", "regs[8]", "regs[9]", "regs[10]", "regs[11]",
+                                     "regs[12]"};
+#else
+#error Unsupported target architecture
+#endif
  
     assert(*m_active);
     // assert(((uint64_t) env) == s_symbolicRegs->address);
-    assert(offset + size <=  CPU_OFFSET(DIV));
+    assert(offset + size <= CPU_OFFSET(DIV));
 
 
     /* Simple case, the register is concrete */
@@ -205,7 +213,7 @@ bool S2EExecutionStateRegisters::readSymbolicRegion(unsigned offset, void *_buf,
 void S2EExecutionStateRegisters::writeSymbolicRegion(unsigned offset, const void *_buf, unsigned size) {
     assert(*m_active);
     assert(((uint64_t) env) == s_symbolicRegs.address);
-    assert(offset + size <=  CPU_OFFSET(DIV));
+    assert(offset + size <= CPU_OFFSET(DIV));
 
     const uint8_t *buf = (const uint8_t *) _buf;
 
@@ -238,7 +246,7 @@ void S2EExecutionStateRegisters::writeSymbolicRegion(unsigned offset, const void
 
 ref<Expr> S2EExecutionStateRegisters::readSymbolicRegion(unsigned offset, Expr::Width width) const {
     assert((width == 1 || (width & 7) == 0) && width <= 64);
-    assert(offset + Expr::getMinBytesForWidth(width) <=  CPU_OFFSET(DIV));
+    assert(offset + Expr::getMinBytesForWidth(width) <= CPU_OFFSET(DIV));
 
     if (!(*m_runningConcrete) || !m_symbolicRegs->isConcrete(offset, width)) {
         klee::BitfieldSimplifier simpl;
@@ -255,7 +263,7 @@ ref<Expr> S2EExecutionStateRegisters::readSymbolicRegion(unsigned offset, Expr::
 void S2EExecutionStateRegisters::writeSymbolicRegion(unsigned offset, klee::ref<klee::Expr> value) {
     unsigned width = value->getWidth();
     assert((width == 1 || (width & 7) == 0) && width <= 64);
-    assert(offset + Expr::getMinBytesForWidth(width) <=  CPU_OFFSET(DIV));
+    assert(offset + Expr::getMinBytesForWidth(width) <= CPU_OFFSET(DIV));
 
     if (!(*m_runningConcrete) || !m_symbolicRegs->isConcrete(offset, width)) {
         bool oldAllConcrete = m_symbolicRegs->isAllConcrete();
@@ -284,7 +292,7 @@ void S2EExecutionStateRegisters::writeSymbolicRegion(unsigned offset, klee::ref<
 void S2EExecutionStateRegisters::writeSymbolicRegionUnsafe(unsigned offset, klee::ref<klee::Expr> value) {
     unsigned width = value->getWidth();
     assert((width == 1 || (width & 7) == 0) && width <= 64);
-    assert(offset + Expr::getMinBytesForWidth(width) <=  CPU_OFFSET(DIV));
+    assert(offset + Expr::getMinBytesForWidth(width) <= CPU_OFFSET(DIV));
 
     bool oldAllConcrete = m_symbolicRegs->isAllConcrete();
 
@@ -306,11 +314,11 @@ void S2EExecutionStateRegisters::readConcreteRegion(unsigned offset, void *buffe
 
     const uint8_t *address;
     if (*m_active) {
-        address = (uint8_t *) s_concreteRegs.address -  CPU_OFFSET(DIV);
+        address = (uint8_t *) s_concreteRegs.address - CPU_OFFSET(DIV);
     } else {
         address = m_concreteRegs->getConcreteBuffer();
         assert(address);
-        address -=  CPU_OFFSET(DIV);
+        address -= CPU_OFFSET(DIV);
     }
 
     small_memcpy(buffer, address + offset, size);
@@ -324,11 +332,11 @@ void S2EExecutionStateRegisters::writeConcreteRegion(unsigned offset, const void
 
     uint8_t *address;
     if (*m_active) {
-        address = (uint8_t *) s_concreteRegs.address -  CPU_OFFSET(DIV);
+        address = (uint8_t *) s_concreteRegs.address - CPU_OFFSET(DIV);
     } else {
         address = m_concreteRegs->getConcreteBuffer();
         assert(address);
-        address -=  CPU_OFFSET(DIV);
+        address -= CPU_OFFSET(DIV);
     }
 
     small_memcpy(address + offset, buffer, size);
