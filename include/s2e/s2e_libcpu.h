@@ -11,6 +11,7 @@
 
 #include <inttypes.h>
 #include <stdarg.h>
+#include <vector>
 
 #include "s2e_log.h"
 
@@ -43,7 +44,10 @@ struct PCIBus;
 /** Initialize S2E instance. Called by main() */
 void s2e_initialize(int argc, char **argv, void *translator, const char *s2e_config_file, const char *s2e_output_dir,
                     int setup_unbuffered_stream, int verbose, unsigned max_processes, const char *shared_dir);
-
+/** allow user to custom cortex-m memory regions **/
+int s2e_init_mem(uint32_t *baseaddr, uint32_t *size, uint8_t *num, uint8_t *is_rom);
+/** allow user to custom entry, msp, vtor of firmware **/
+int s2e_init_firmware(uint32_t *entry, uint32_t *msp_init, uint32_t *vtor);
 /** Relese S2E instance and all S2E-related objects. Called by main() */
 void s2e_close(void);
 void s2e_close_arg(void);
