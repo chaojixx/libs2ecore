@@ -246,6 +246,8 @@ public:
     uint64_t getBp() const;
 #elif defined(TARGET_ARM)
     uint64_t getLr() const;
+    uint64_t getExceptionIndex() const;
+    uint64_t getInterruptFlag() const;
 #else
 #error Unsupported target architecture
 #endif

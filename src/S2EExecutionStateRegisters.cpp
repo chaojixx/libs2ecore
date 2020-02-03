@@ -523,6 +523,14 @@ void S2EExecutionStateRegisters::setLr(uint64_t lr) {
 uint64_t S2EExecutionStateRegisters::getPageDir() const {
     return 0x0;
 }
+
+uint64_t S2EExecutionStateRegisters::getExceptionIndex() const {
+    return read<target_ulong>(CPU_OFFSET(v7m.exception));
+}
+
+uint64_t S2EExecutionStateRegisters::getInterruptFlag() const {
+    return read<target_ulong>(CPU_OFFSET(interrupt_flag));
+}
 #else
 #error Unsupported target architecture
 #endif
