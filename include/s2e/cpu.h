@@ -84,6 +84,10 @@ void se_do_interrupt_all(int intno, int is_int, int error_code,
 uint64_t helper_set_cc_op_eflags(void);
 #elif defined(TARGET_ARM)
 void se_do_interrupt_arm(void);
+void se_set_armv7m_external_irq(int irq_num);
+void se_enable_all_armv7m_external_irq(int serial);
+void se_enable_systick_irq(int mode);
+uint32_t se_get_active_armv7m_external_irq(int serial);
 #else
 #error Unsupported target architecture
 #endif

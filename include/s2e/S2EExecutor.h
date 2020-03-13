@@ -129,6 +129,10 @@ public:
 #elif defined(TARGET_ARM)
     void doInterrupt(S2EExecutionState *state);
     static void doInterruptARM(void);
+    void setExternalInterrupt(int irq_num);
+    void enableExternalInterruptAll(int serial);
+    void disableSystickInterrupt(int mode);
+    uint32_t getActiveExternalInterrupt(int serial);
 #else
 #error Unsupported target architecture
 #endif

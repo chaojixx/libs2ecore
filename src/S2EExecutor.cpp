@@ -313,6 +313,10 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHan
 #elif defined(TARGET_ARM)
     __DEFINE_EXT_FUNCTION(cpu_arm_handle_mmu_fault)
     __DEFINE_EXT_FUNCTION(se_helper_do_interrupt_arm)
+    __DEFINE_EXT_FUNCTION(se_helper_set_armv7m_external_irq)
+    __DEFINE_EXT_FUNCTION(se_helper_enable_all_armv7m_external_irq)
+    __DEFINE_EXT_FUNCTION(se_helper_get_active_armv7m_external_irq)
+    __DEFINE_EXT_FUNCTION(se_helper_enable_systick_irq)
 #else
 #error Unsupported target architecture
 #endif
@@ -1841,13 +1845,25 @@ void S2EExecutor::doInterruptARM(void){
 
     g_s2e_state->setRunningExceptionEmulationCode(false);
 }
+
+void S2EExecutor::setExternalInterrupt(int irq_num) {
+    se_set_armv7m_external_irq(irq_num);
+}
+
+void S2EExecutor::enableExternalInterruptAll(int serial) {
+    se_enable_all_armv7m_external_irq(serial);
+}
+
+void S2EExecutor::disableSystickInterrupt(int mode) {
+    se_enable_systick_irq(mode);
+}
+
+uint32_t S2EExecutor::getActiveExternalInterrupt(int serial) {
+    return se_get_active_armv7m_external_irq(serial);
+}
 #else
 #error Unsupported target architecture
 #endif
-
-
-
-
 
 void S2EExecutor::setupTimersHandler() {
     m_s2e->getCorePlugin()->onTimer.connect(sigc::bind(sigc::ptr_fun(&onAlarm), 0));
