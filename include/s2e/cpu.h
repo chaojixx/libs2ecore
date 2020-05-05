@@ -54,6 +54,7 @@ void s2e_kvm_save_device_state(void);
 void s2e_kvm_restore_device_state(void);
 void s2e_kvm_sync_sregs(void);
 void s2e_kvm_clone_process(void);
+void s2e_kvm_cpu_exit_request(void);
 
 // Called by the kvm interface
 // TODO: make these function pointers for better decoupling?

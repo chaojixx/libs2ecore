@@ -1861,6 +1861,10 @@ void S2EExecutor::disableSystickInterrupt(int mode) {
 uint32_t S2EExecutor::getActiveExternalInterrupt(int serial) {
     return se_get_active_armv7m_external_irq(serial);
 }
+
+void S2EExecutor::setCpuExitRequest() {
+    s2e_kvm_cpu_exit_request();
+}
 #else
 #error Unsupported target architecture
 #endif

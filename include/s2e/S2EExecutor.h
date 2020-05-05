@@ -133,6 +133,7 @@ public:
     void enableExternalInterruptAll(int serial);
     void disableSystickInterrupt(int mode);
     uint32_t getActiveExternalInterrupt(int serial);
+    void setCpuExitRequest(void);
 #else
 #error Unsupported target architecture
 #endif
