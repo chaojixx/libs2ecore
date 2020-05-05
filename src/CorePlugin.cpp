@@ -97,4 +97,5 @@ void CorePlugin::onInitializationCompleteCb(S2EExecutionState *state) {
     exec->registerSharedExternalObject(state, &g_s2e_concretize_io_writes, sizeof(g_s2e_concretize_io_writes));
     exec->registerSharedExternalObject(state, &g_s2e_fork_on_symbolic_address, sizeof(g_s2e_fork_on_symbolic_address));
     exec->registerSharedExternalObject(state, &g_s2e_enable_mmio_checks, sizeof(g_s2e_enable_mmio_checks));
+    exec->registerSharedExternalObject(state, &g_s2e_allow_interrupt, sizeof(g_s2e_allow_interrupt));
 }

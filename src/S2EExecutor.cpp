@@ -197,6 +197,8 @@ extern "C" {
     int g_s2e_fork_on_symbolic_address = 0;
     int g_s2e_concretize_io_addresses = 1;
     int g_s2e_concretize_io_writes = 1;
+    int g_s2e_allow_interrupt = 1;
+    bool g_s2e_cache_mode = false;
 
     // XXX: the following should be thread-local when
     // we implement support for multi-cores in the guest
@@ -259,7 +261,9 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHan
     helper_register_symbols();
 #endif
 
-
+#if defined(TARGET_ARM)
+    __DEFINE_EXT_VARIABLE(g_s2e_allow_interrupt)
+#endif
     __DEFINE_EXT_VARIABLE(g_s2e_concretize_io_addresses)
     __DEFINE_EXT_VARIABLE(g_s2e_concretize_io_writes)
     __DEFINE_EXT_VARIABLE(g_s2e_fork_on_symbolic_address)

@@ -70,6 +70,13 @@ extern int g_s2e_concretize_io_addresses;
     symbolic I/O writes concrete */
 extern int g_s2e_concretize_io_writes;
 
+/** Global variable that determines whether to invoke
+    interrupts in symoblic mode  */
+extern int g_s2e_allow_interrupt;
+
+/** Global variable that determines whether in learning mode or cache mode */
+extern bool g_s2e_cache_mode;
+
 /** Prevent anything from flushing the TLB cache */
 extern int g_se_disable_tlb_flush;
 
