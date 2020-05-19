@@ -1452,12 +1452,19 @@ S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, const klee::re
 
     // If the condition is constant, there is no need to do anything as the fork will not branch
     bool forkOk = true;
+    bool conditionInCurrentState = false;
     if (!dyn_cast<klee::ConstantExpr>(condition)) {
         if (currentState->forkDisabled) {
             g_s2e->getDebugStream(currentState) << "fork disabled at " << hexval(currentState->regs()->getPc()) << "\n";
         }
 
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
         g_s2e->getCorePlugin()->onStateForkDecide.emit(currentState, &forkOk);
+#elif defined(TARGET_ARM)
+        g_s2e->getCorePlugin()->onStateForkDecide.emit(currentState, &forkOk, condition, &conditionInCurrentState);
+#else
+#error Unsupported target architecture
+#endif
         if (!forkOk) {
             g_s2e->getDebugStream(currentState) << "fork prevented by request from plugin\n";
         }
@@ -1468,7 +1475,7 @@ S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, const klee::re
         currentState->forkDisabled = true;
     }
 
-    res = Executor::fork(current, condition, keepConditionTrueInCurrentState);
+    res = Executor::fork(current, condition, conditionInCurrentState);
 
     currentState->forkDisabled = oldForkStatus;
 
@@ -1486,7 +1493,7 @@ S2EExecutor::StatePair S2EExecutor::fork(ExecutionState &current, const klee::re
 
     llvm::raw_ostream &out = m_s2e->getInfoStream(currentState);
     out << "Forking state " << currentState->getID() << " at pc = " << hexval(currentState->regs()->getPc())
-        << " at pagedir = " << hexval(currentState->regs()->getPageDir()) << '\n';
+        << " at pagedir = " << hexval(currentState->regs()->getPageDir()) << " condition = " << conditionInCurrentState <<'\n';
 
     for (unsigned i = 0; i < 2; ++i) {
         if (VerboseFork) {

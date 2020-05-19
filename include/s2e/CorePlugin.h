@@ -355,12 +355,21 @@ public:
     ///
     /// Plugins set the pointer to \c true to allow forking to proceed. By default this is set to \c true.
     ///
+#if defined(TARGET_I386) || defined(TARGET_X86_64)
     sigc::signal<void,
                  S2EExecutionState*,
                  bool* /* allow forking */>
         onStateForkDecide;
-
-
+#elif defined(TARGET_ARM)
+    sigc::signal<void,
+                 S2EExecutionState*,
+                 bool* /* allow forking */,
+                 const klee::ref<klee::Expr> & /* condition*/,
+                 bool* /* condition in current state */>
+        onStateForkDecide;
+#else
+#error Unsupported target architecture
+#endif
     ///
     /// Signal emitted when spawning a new S2E process.
     ///
