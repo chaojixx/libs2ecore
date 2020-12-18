@@ -38,6 +38,7 @@ unsigned *g_s2e_on_port_access_signals_count = nullptr;
 unsigned *g_s2e_on_privilege_change_signals_count = nullptr;
 unsigned *g_s2e_on_page_directory_change_signals_count = nullptr;
 unsigned *g_s2e_on_call_return_signals_count = nullptr;
+unsigned *g_s2e_on_invalid_pc_access_signals_count = nullptr; // fuzzing used only
 }
 
 using namespace s2e;
@@ -63,6 +64,7 @@ void CorePlugin::initialize() {
     g_s2e_on_privilege_change_signals_count = onPrivilegeChange.getActiveSignalsPtr();
     g_s2e_on_page_directory_change_signals_count = onPageDirectoryChange.getActiveSignalsPtr();
     g_s2e_on_call_return_signals_count = onCallReturnTranslate.getActiveSignalsPtr();
+    g_s2e_on_invalid_pc_access_signals_count = onInvalidPCAccess.getActiveSignalsPtr();
 
     onInitializationComplete.connect(sigc::mem_fun(*this, &CorePlugin::onInitializationCompleteCb));
 }
@@ -86,7 +88,8 @@ void CorePlugin::onInitializationCompleteCb(S2EExecutionState *state) {
                         g_s2e_on_port_access_signals_count,
                         g_s2e_on_privilege_change_signals_count,
                         g_s2e_on_page_directory_change_signals_count,
-                        g_s2e_on_call_return_signals_count};
+                        g_s2e_on_call_return_signals_count,
+                        g_s2e_on_invalid_pc_access_signals_count};
 
     for (unsigned i = 0; i < sizeof(vars) / sizeof(vars[0]); ++i) {
         exec->registerSharedExternalObject(state, vars[i], sizeof(*vars[i]));

@@ -488,6 +488,14 @@ void s2e_on_tlb_miss(uint64_t addr, int is_write, void *retaddr) {
     }
 }
 
+void s2e_on_invalid_pc_access(uint64_t addr) {
+    try {
+        g_s2e->getCorePlugin()->onInvalidPCAccess.emit(g_s2e_state, addr);
+    } catch (s2e::CpuExitException &) {
+        longjmp(env->jmp_env, 1);
+    }
+}
+
 void s2e_trace_port_access(uint64_t port, uint64_t value, unsigned size, int isWrite, void *retaddr) {
     if (g_s2e->getCorePlugin()->onPortAccess.empty()) {
         return;

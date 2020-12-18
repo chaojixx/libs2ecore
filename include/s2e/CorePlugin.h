@@ -476,6 +476,14 @@ public:
                 bool * /* instrument */>
         onCallReturnTranslate;
 
+    ///
+    /// Emitted before a block is translated for memory check.
+    ///
+    sigc::signal<void,
+                S2EExecutionState*,
+                uint64_t /* address */>
+        onInvalidPCAccess;
+
     // clang-format on
 };
 
