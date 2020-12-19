@@ -63,6 +63,8 @@ void s2e_on_translate_register_access(struct TranslationBlock *tb, uint64_t pc, 
 
 void s2e_on_exception(unsigned intNb);
 
+void s2e_on_exception_exit(uint64_t intNum);
+
 int s2e_on_call_return_translate(uint64_t pc, int isCall);
 
 /**peripherals symbolic*/
@@ -88,6 +90,7 @@ extern unsigned *g_s2e_on_translate_lea_rip_relative_signals_count;
 extern unsigned *g_s2e_on_translate_instruction_end_signals_count;
 extern unsigned *g_s2e_on_translate_register_access_signals_count;
 extern unsigned *g_s2e_on_exception_signals_count;
+extern unsigned *g_s2e_on_exception_exit_signals_count;
 extern unsigned *g_s2e_on_page_fault_signals_count;
 extern unsigned *g_s2e_on_tlb_miss_signals_count;
 extern unsigned *g_s2e_on_port_access_signals_count;

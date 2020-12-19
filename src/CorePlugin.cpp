@@ -31,6 +31,7 @@ unsigned *g_s2e_on_translate_jump_start_signals_count = nullptr;
 unsigned *g_s2e_on_translate_lea_rip_relative_signals_count = nullptr;
 unsigned *g_s2e_on_translate_instruction_end_signals_count = nullptr;
 unsigned *g_s2e_on_translate_register_access_signals_count = nullptr;
+unsigned *g_s2e_on_exception_exit_signals_count = nullptr;
 unsigned *g_s2e_on_exception_signals_count = nullptr;
 unsigned *g_s2e_on_page_fault_signals_count = nullptr;
 unsigned *g_s2e_on_tlb_miss_signals_count = nullptr;
@@ -58,6 +59,7 @@ void CorePlugin::initialize() {
     g_s2e_on_translate_instruction_end_signals_count = onTranslateInstructionEnd.getActiveSignalsPtr();
     g_s2e_on_translate_register_access_signals_count = onTranslateRegisterAccessEnd.getActiveSignalsPtr();
     g_s2e_on_exception_signals_count = onException.getActiveSignalsPtr();
+    g_s2e_on_exception_exit_signals_count = onExceptionExit.getActiveSignalsPtr();
     g_s2e_on_tlb_miss_signals_count = onTlbMiss.getActiveSignalsPtr();
     g_s2e_on_page_fault_signals_count = onPageFault.getActiveSignalsPtr();
     g_s2e_on_port_access_signals_count = onPortAccess.getActiveSignalsPtr();
@@ -83,6 +85,7 @@ void CorePlugin::onInitializationCompleteCb(S2EExecutionState *state) {
                         g_s2e_on_translate_instruction_end_signals_count,
                         g_s2e_on_translate_register_access_signals_count,
                         g_s2e_on_exception_signals_count,
+                        g_s2e_on_exception_exit_signals_count,
                         g_s2e_on_page_fault_signals_count,
                         g_s2e_on_tlb_miss_signals_count,
                         g_s2e_on_port_access_signals_count,

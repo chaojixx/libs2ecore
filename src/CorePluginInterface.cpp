@@ -394,6 +394,16 @@ void s2e_on_exception(unsigned intNb) {
     }
 }
 
+void s2e_on_exception_exit(uint64_t intNum) {
+    assert(g_s2e_state->isActive());
+
+    try {
+        g_s2e->getCorePlugin()->onExceptionExit.emit(g_s2e_state, intNum);
+    } catch (s2e::CpuExitException &) {
+        longjmp(env->jmp_env, 1);
+    }
+}
+
 static CPUTimer *s_timer = nullptr;
 
 static void s2e_timer_cb(void *opaque) {

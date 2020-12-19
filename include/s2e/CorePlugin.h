@@ -178,6 +178,14 @@ public:
         onException;
 
     ///
+    /// Signal that is emitted upon exception.
+    ///
+    sigc::signal<void,
+                 S2EExecutionState*,
+                 unsigned /* Exception Index */>
+        onExceptionExit;
+
+    ///
     /// Signal that is emitted when custom opcode is detected.
     ///
     sigc::signal<void,

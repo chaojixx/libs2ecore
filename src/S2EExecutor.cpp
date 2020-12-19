@@ -278,6 +278,7 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHan
     __DEFINE_EXT_VARIABLE(g_s2e_on_translate_instruction_end_signals_count)
     __DEFINE_EXT_VARIABLE(g_s2e_on_translate_register_access_signals_count)
     __DEFINE_EXT_VARIABLE(g_s2e_on_exception_signals_count)
+    __DEFINE_EXT_VARIABLE(g_s2e_on_exception_exit_signals_count)
     __DEFINE_EXT_VARIABLE(g_s2e_on_page_fault_signals_count)
     __DEFINE_EXT_VARIABLE(g_s2e_on_tlb_miss_signals_count)
     __DEFINE_EXT_VARIABLE(g_s2e_on_port_access_signals_count)
@@ -367,6 +368,7 @@ S2EExecutor::S2EExecutor(S2E *s2e, TCGLLVMTranslator *translator, InterpreterHan
     __DEFINE_EXT_FUNCTION(s2e_on_privilege_change);
     __DEFINE_EXT_FUNCTION(s2e_on_page_fault);
     __DEFINE_EXT_FUNCTION(s2e_on_invalid_pc_access);
+    __DEFINE_EXT_FUNCTION(s2e_on_exception_exit);
 
     __DEFINE_EXT_FUNCTION(se_notdirty_mem_write)
     __DEFINE_EXT_FUNCTION(se_notdirty_mem_read)
